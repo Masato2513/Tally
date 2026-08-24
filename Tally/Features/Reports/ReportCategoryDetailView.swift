@@ -109,7 +109,7 @@ struct ReportCategoryDetailView: View {
                 Section {
                     if snapshot.details.isEmpty {
                         ContentUnavailableView(
-                            "暂无分类明细",
+                            "暂无构成数据",
                             systemImage: "list.bullet",
                             description: Text("当前分类在本月没有可展示的支出。")
                         )
@@ -126,7 +126,7 @@ struct ReportCategoryDetailView: View {
                         }
                     }
                 } header: {
-                    sectionTitle("分类明细")
+                    sectionTitle("构成")
                 }
 
                 transactionSections(
@@ -195,23 +195,39 @@ struct ReportCategoryDetailView: View {
         _ item: ReportDetailItem,
         categoryExpenseInCents: Int64
     ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(item.name)
-                .lineLimit(1)
+        let ratio = ratio(item.amountInCents, of: categoryExpenseInCents)
 
-            Spacer(minLength: 8)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(item.name)
+                    .lineLimit(1)
 
-            Text(MoneyAmount.formatted(cents: item.amountInCents))
-                .monospacedDigit()
-                .lineLimit(1)
+                Spacer(minLength: 8)
 
-            Text(percentageText(item.amountInCents, of: categoryExpenseInCents))
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .frame(minWidth: 52, alignment: .trailing)
+                Text(MoneyAmount.formatted(cents: item.amountInCents))
+                    .monospacedDigit()
+                    .lineLimit(1)
+
+                Text(percentageText(ratio))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .frame(minWidth: 52, alignment: .trailing)
+            }
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule(style: .continuous)
+                        .fill(categoryColor.opacity(0.14))
+
+                    Capsule(style: .continuous)
+                        .fill(categoryColor)
+                        .frame(width: geometry.size.width * ratio)
+                }
+            }
+            .frame(height: 4)
         }
         .font(.body)
-        .padding(.vertical, 3)
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
     }
 
@@ -231,7 +247,7 @@ struct ReportCategoryDetailView: View {
             } header: {
                 VStack(alignment: .leading, spacing: 10) {
                     if index == 0 {
-                        sectionTitle("具体账单")
+                        sectionTitle("账单")
                     }
 
                     TransactionDaySectionHeader(
@@ -292,11 +308,28 @@ struct ReportCategoryDetailView: View {
         )
     }
 
+    private var categoryColor: Color {
+        guard !slice.isMerged,
+              let categoryID = slice.categoryIDs.first,
+              let category = categories.first(where: { $0.id == categoryID })
+        else {
+            return LedgerCategoryColor.gray.color
+        }
+
+        return LedgerCategoryColor.resolve(for: category).color
+    }
+
     private func percentageText(_ amountInCents: Int64, of totalInCents: Int64) -> String {
-        let percentage = totalInCents > 0
-            ? Double(amountInCents) / Double(totalInCents)
-            : 0
-        return percentage.formatted(.percent.precision(.fractionLength(1)))
+        percentageText(ratio(amountInCents, of: totalInCents))
+    }
+
+    private func percentageText(_ ratio: Double) -> String {
+        ratio.formatted(.percent.precision(.fractionLength(1)))
+    }
+
+    private func ratio(_ amountInCents: Int64, of totalInCents: Int64) -> Double {
+        guard totalInCents > 0 else { return 0 }
+        return min(max(Double(amountInCents) / Double(totalInCents), 0), 1)
     }
 
     private func deletePendingTransaction() {
