@@ -8,28 +8,47 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// 只接管明确的横向拖动；纵向意图会让识别器失败并交还给外层 ScrollView。
-private struct HorizontalChartPanGesture: UIGestureRecognizerRepresentable {
+/// 仅当手势从已选中的图表数据点附近开始时接管拖动。
+/// 一旦开始，不再限制移动方向；松手后外层 ScrollView 会恢复正常响应。
+private struct SelectedChartPointPanGesture: UIGestureRecognizerRepresentable {
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        let converter: UIGestureRecognizerRepresentableCoordinateSpaceConverter
+        var shouldBegin: (CGPoint) -> Bool
         var onChanged: (CGPoint) -> Void
 
-        init(onChanged: @escaping (CGPoint) -> Void) {
+        init(
+            converter: UIGestureRecognizerRepresentableCoordinateSpaceConverter,
+            shouldBegin: @escaping (CGPoint) -> Bool,
+            onChanged: @escaping (CGPoint) -> Void
+        ) {
+            self.converter = converter
+            self.shouldBegin = shouldBegin
             self.onChanged = onChanged
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let panGesture = gestureRecognizer as? UIPanGestureRecognizer else {
+            guard gestureRecognizer is UIPanGestureRecognizer else {
                 return false
             }
-            let velocity = panGesture.velocity(in: panGesture.view)
-            return abs(velocity.x) > abs(velocity.y)
+            let location = converter.localLocation
+            let translation = converter.localTranslation ?? .zero
+            let initialLocation = CGPoint(
+                x: location.x - translation.x,
+                y: location.y - translation.y
+            )
+            return shouldBegin(initialLocation)
         }
     }
 
+    let shouldBegin: (CGPoint) -> Bool
     let onChanged: (CGPoint) -> Void
 
     func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator(onChanged: onChanged)
+        Coordinator(
+            converter: converter,
+            shouldBegin: shouldBegin,
+            onChanged: onChanged
+        )
     }
 
     func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
@@ -44,6 +63,7 @@ private struct HorizontalChartPanGesture: UIGestureRecognizerRepresentable {
         _ recognizer: UIPanGestureRecognizer,
         context: Context
     ) {
+        context.coordinator.shouldBegin = shouldBegin
         context.coordinator.onChanged = onChanged
     }
 
@@ -54,7 +74,7 @@ private struct HorizontalChartPanGesture: UIGestureRecognizerRepresentable {
         guard recognizer.state == .began || recognizer.state == .changed else {
             return
         }
-        context.coordinator.onChanged(recognizer.location(in: recognizer.view))
+        context.coordinator.onChanged(context.converter.localLocation)
     }
 }
 
@@ -446,14 +466,24 @@ struct ReportsView: View {
                     Color.clear
                         .contentShape(.rect)
                         .gesture(
-                            HorizontalChartPanGesture { location in
-                                updateTrendSelection(
-                                    at: location,
-                                    proxy: proxy,
-                                    geometry: geometry,
-                                    points: points
-                                )
-                            }
+                            SelectedChartPointPanGesture(
+                                shouldBegin: { location in
+                                    canBeginTrendDrag(
+                                        at: location,
+                                        selectedPoint: selectedPoint,
+                                        proxy: proxy,
+                                        geometry: geometry
+                                    )
+                                },
+                                onChanged: { location in
+                                    updateTrendSelection(
+                                        at: location,
+                                        proxy: proxy,
+                                        geometry: geometry,
+                                        points: points
+                                    )
+                                }
+                            )
                         )
                         .simultaneousGesture(
                             SpatialTapGesture().onEnded { value in
@@ -523,6 +553,32 @@ struct ReportsView: View {
         )?.date
         guard snappedDate != selectedTrendDate else { return }
         selectedTrendDate = snappedDate
+    }
+
+    private func canBeginTrendDrag(
+        at location: CGPoint,
+        selectedPoint: DailyExpensePoint?,
+        proxy: ChartProxy,
+        geometry: GeometryProxy
+    ) -> Bool {
+        guard let selectedPoint,
+              let plotFrameAnchor = proxy.plotFrame,
+              let pointX = proxy.position(forX: selectedPoint.date),
+              let pointY = proxy.position(forY: selectedPoint.amountInYuan)
+        else {
+            return false
+        }
+
+        let plotFrame = geometry[plotFrameAnchor]
+        let pointLocation = CGPoint(
+            x: plotFrame.minX + pointX,
+            y: plotFrame.minY + pointY
+        )
+        let touchTargetRadius: CGFloat = 28
+        return hypot(
+            location.x - pointLocation.x,
+            location.y - pointLocation.y
+        ) <= touchTargetRadius
     }
 
     private func trendSelectionText(for point: DailyExpensePoint) -> String {
