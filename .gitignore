@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Xcode 用户配置
+xcuserdata/
+*.xcuserstate
+
+# Xcode 构建产物
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+.idea/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+/Docs/
