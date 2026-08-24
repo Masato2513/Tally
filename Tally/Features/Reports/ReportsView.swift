@@ -20,9 +20,13 @@ struct ReportsView: View {
         let categoryColorsByID: [UUID: LedgerCategoryColor]
     }
 
-    private struct CategoryDetailDestination: Hashable {
+    private struct CategoryDetailPresentation: Identifiable {
         let slice: ExpenseCategorySlice
         let month: Date
+
+        var id: String {
+            "\(slice.id):\(month.timeIntervalSinceReferenceDate)"
+        }
     }
 
     @Query(sort: \LedgerCategory.sortOrder)
@@ -30,7 +34,7 @@ struct ReportsView: View {
 
     @State private var mode: ReportMode = .report
     @State private var selectedMonth = Date.now
-    @State private var categoryDetailDestination: CategoryDetailDestination?
+    @State private var categoryDetailPresentation: CategoryDetailPresentation?
     @State private var isPresentingMonthPicker = false
 
     private let calendar = Calendar.autoupdatingCurrent
@@ -84,10 +88,10 @@ struct ReportsView: View {
         }
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(mode.rawValue)
-        .navigationDestination(item: $categoryDetailDestination) { destination in
+        .sheet(item: $categoryDetailPresentation) { presentation in
             ReportCategoryDetailView(
-                slice: destination.slice,
-                selectedMonth: destination.month
+                slice: presentation.slice,
+                selectedMonth: presentation.month
             )
         }
         .sheet(isPresented: $isPresentingMonthPicker) {
@@ -396,7 +400,7 @@ struct ReportsView: View {
     }
 
     private func showDetails(for slice: ExpenseCategorySlice) {
-        categoryDetailDestination = CategoryDetailDestination(
+        categoryDetailPresentation = CategoryDetailPresentation(
             slice: slice,
             month: selectedMonth
         )
