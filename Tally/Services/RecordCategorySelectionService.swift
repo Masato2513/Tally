@@ -16,17 +16,21 @@ struct RecordCategoryOption: Identifiable, Equatable {
 }
 
 enum RecordCategorySelectionService {
-    private static let defaultExpenseCategorySystemKey = "expense.food"
-
     static func defaultExpenseCategoryID(
         in categories: [LedgerCategory]
     ) -> UUID? {
-        categories.first {
-            $0.systemKey == defaultExpenseCategorySystemKey
-                && $0.type == .expense
-                && !$0.isHidden
-                && !$0.isSoftDeleted
-        }?.id
+        categories
+            .filter {
+                $0.type == .expense
+                    && !$0.isHidden
+                    && !$0.isSoftDeleted
+            }
+            .min { lhs, rhs in
+                if lhs.sortOrder != rhs.sortOrder {
+                    return lhs.sortOrder < rhs.sortOrder
+                }
+                return lhs.id.uuidString < rhs.id.uuidString
+            }?.id
     }
 
     static func options(

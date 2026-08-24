@@ -8,13 +8,13 @@ import XCTest
 
 @MainActor
 final class RecordCategorySelectionServiceTests: XCTestCase {
-    func testDefaultExpenseCategoryUsesVisibleSystemFoodCategory() {
+    func testDefaultExpenseCategoryUsesFirstVisibleCategoryBySortOrder() {
         let shopping = LedgerCategory(
             systemKey: "expense.shopping",
             name: "购物",
             type: .expense,
             symbolName: "bag",
-            sortOrder: 0,
+            sortOrder: 1,
             isSystem: true
         )
         let food = LedgerCategory(
@@ -22,7 +22,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
             name: "餐饮",
             type: .expense,
             symbolName: "fork.knife",
-            sortOrder: 1,
+            sortOrder: 0,
             isSystem: true
         )
 
@@ -34,7 +34,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
         )
     }
 
-    func testHiddenFoodCategoryIsNotSelectedByDefault() {
+    func testHiddenFirstCategoryFallsBackToNextVisibleCategory() {
         let food = LedgerCategory(
             systemKey: "expense.food",
             name: "餐饮",
@@ -44,13 +44,22 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
             isSystem: true,
             isHidden: true
         )
+        let daily = LedgerCategory(
+            systemKey: "expense.daily",
+            name: "日常",
+            type: .expense,
+            symbolName: "basket",
+            sortOrder: 1,
+            isSystem: true
+        )
 
-        XCTAssertNil(
-            RecordCategorySelectionService.defaultExpenseCategoryID(in: [food])
+        XCTAssertEqual(
+            RecordCategorySelectionService.defaultExpenseCategoryID(in: [daily, food]),
+            daily.id
         )
     }
 
-    func testSoftDeletedFoodCategoryIsNotSelectedByDefault() {
+    func testSoftDeletedFirstCategoryFallsBackToNextVisibleCategory() {
         let food = LedgerCategory(
             systemKey: "expense.food",
             name: "餐饮",
@@ -60,9 +69,42 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
             isSystem: true,
             isSoftDeleted: true
         )
+        let shopping = LedgerCategory(
+            systemKey: "expense.shopping",
+            name: "购物",
+            type: .expense,
+            symbolName: "bag",
+            sortOrder: 1,
+            isSystem: true
+        )
+
+        XCTAssertEqual(
+            RecordCategorySelectionService.defaultExpenseCategoryID(in: [food, shopping]),
+            shopping.id
+        )
+    }
+
+    func testDefaultExpenseCategoryIsNilWhenNoVisibleExpenseCategoryExists() {
+        let hiddenExpense = LedgerCategory(
+            name: "隐藏支出",
+            type: .expense,
+            symbolName: "eye.slash",
+            sortOrder: 0,
+            isSystem: false,
+            isHidden: true
+        )
+        let income = LedgerCategory(
+            name: "工资",
+            type: .income,
+            symbolName: "banknote",
+            sortOrder: 0,
+            isSystem: true
+        )
 
         XCTAssertNil(
-            RecordCategorySelectionService.defaultExpenseCategoryID(in: [food])
+            RecordCategorySelectionService.defaultExpenseCategoryID(
+                in: [income, hiddenExpense]
+            )
         )
     }
 
