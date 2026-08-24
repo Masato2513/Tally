@@ -239,20 +239,21 @@ struct BillsView: View {
     ) -> some View {
         let display = categoryLookup.display(for: transaction, showsDate: showsDate)
 
-        return Button {
+        return BillsTransactionRow(
+            categoryTitle: display.categoryTitle,
+            symbolName: display.symbolName,
+            categoryColor: display.categoryColor,
+            secondaryText: display.secondaryText,
+            amountText: display.amountText
+        )
+        .equatable()
+        .onTapGesture {
             editingTransaction = transaction
-        } label: {
-            BillsTransactionRow(
-                categoryTitle: display.categoryTitle,
-                symbolName: display.symbolName,
-                categoryColor: display.categoryColor,
-                dateText: display.dateText,
-                noteText: display.noteText,
-                amountText: display.amountText
-            )
-            .equatable()
         }
-        .buttonStyle(.plain)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            editingTransaction = transaction
+        }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button("删除", systemImage: "trash") {
                 pendingDeleteTransaction = transaction

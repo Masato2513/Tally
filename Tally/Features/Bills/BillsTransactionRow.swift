@@ -21,8 +21,7 @@ struct BillsTransactionDisplay: Equatable {
     let categoryTitle: String
     let symbolName: String
     let categoryColor: LedgerCategoryColor
-    let dateText: String?
-    let noteText: String?
+    let secondaryText: String?
     let amountText: String
 
     init(
@@ -35,8 +34,18 @@ struct BillsTransactionDisplay: Equatable {
         categoryTitle = names.isEmpty ? "未分类" : names.joined(separator: " · ")
         symbolName = category?.symbolName ?? "questionmark.circle"
         categoryColor = LedgerCategoryColor.resolve(for: category)
-        dateText = showsDate ? transaction.date.formatted(Self.dateTimeStyle) : nil
-        noteText = transaction.note.isEmpty ? nil : transaction.note
+        let dateText = showsDate ? transaction.date.formatted(Self.dateStyle) : nil
+        let noteText = transaction.note.isEmpty ? nil : transaction.note
+        secondaryText = switch (dateText, noteText) {
+        case let (.some(date), .some(note)):
+            "\(date) · \(note)"
+        case let (.some(date), .none):
+            date
+        case let (.none, .some(note)):
+            note
+        case (.none, .none):
+            nil
+        }
 
         let signedAmount = transaction.type == .expense
             ? -transaction.amountInCents
@@ -44,11 +53,9 @@ struct BillsTransactionDisplay: Equatable {
         amountText = MoneyAmount.formatted(cents: signedAmount)
     }
 
-    private static let dateTimeStyle = Date.FormatStyle()
+    private static let dateStyle = Date.FormatStyle()
         .month(.wide)
         .day()
-        .hour(.twoDigits(amPM: .abbreviated))
-        .minute(.twoDigits)
         .locale(Locale(identifier: "zh_CN"))
 
     static func cached(
@@ -86,37 +93,32 @@ struct BillsTransactionRow: View, Equatable {
     let categoryTitle: String
     let symbolName: String
     let categoryColor: LedgerCategoryColor
-    let dateText: String?
-    let noteText: String?
+    let secondaryText: String?
     let amountText: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Label {
-                    Text(categoryTitle)
-                        .foregroundStyle(.primary)
-                } icon: {
-                    Image(systemName: symbolName)
-                        .symbolRenderingMode(.monochrome)
-                        .foregroundStyle(categoryColor.color)
-                }
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: symbolName)
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(categoryColor.color)
                 .font(.body)
-                .lineLimit(1)
+                .frame(width: 20)
+                .accessibilityHidden(true)
 
-                if let dateText {
-                    Text(dateText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(categoryTitle)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
-                if let noteText {
-                    Text(noteText)
+                if let secondaryText {
+                    Text(secondaryText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 12)
 
@@ -125,6 +127,7 @@ struct BillsTransactionRow: View, Equatable {
                 .foregroundStyle(.primary)
                 .monospacedDigit()
         }
+        .frame(minHeight: 44)
         .padding(.vertical, 3)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
