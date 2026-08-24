@@ -140,13 +140,76 @@ final class ReportServiceTests: XCTestCase {
             calendar: calendar
         )
 
-        XCTAssertEqual(details.map(\.name), ["三餐", "咖啡", "未细分"])
+        XCTAssertEqual(details.map(\.name), ["餐饮 · 三餐", "餐饮 · 咖啡", "餐饮"])
         XCTAssertEqual(details.map(\.amountInCents), [5_000, 1_800, 600])
         XCTAssertEqual(
             details[0].percentage(of: slice.amountInCents),
             5_000.0 / 7_400.0,
             accuracy: 0.000_001
         )
+    }
+
+    func testMergedCategoryDetailsKeepEachCategoryHierarchySeparate() throws {
+        let calendar = makeCalendar()
+        let referenceDate = try makeDate(year: 2026, month: 8, day: 21, calendar: calendar)
+        let food = LedgerCategory(
+            name: "餐饮",
+            type: .expense,
+            symbolName: "fork.knife",
+            sortOrder: 0,
+            isSystem: true
+        )
+        let shopping = LedgerCategory(
+            name: "购物",
+            type: .expense,
+            symbolName: "bag",
+            sortOrder: 1,
+            isSystem: true
+        )
+        let meals = LedgerSubcategory(
+            name: "三餐",
+            categoryID: food.id,
+            sortOrder: 0,
+            isSystem: true
+        )
+        let transactions = [
+            transaction(
+                amount: 1_500,
+                date: referenceDate,
+                categoryID: shopping.id
+            ),
+            transaction(
+                amount: 1_000,
+                date: referenceDate,
+                categoryID: food.id,
+                subcategoryID: meals.id
+            ),
+            transaction(
+                amount: 500,
+                date: referenceDate,
+                categoryID: food.id
+            )
+        ]
+        let slice = ExpenseCategorySlice(
+            id: "other",
+            name: "其他",
+            symbolName: "ellipsis.circle",
+            amountInCents: 3_000,
+            categoryIDs: [food.id, shopping.id],
+            isMerged: true
+        )
+
+        let details = ReportService.detailItems(
+            for: slice,
+            transactions: transactions,
+            categories: [food, shopping],
+            subcategories: [meals],
+            inMonthContaining: referenceDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(details.map(\.name), ["购物", "餐饮 · 三餐", "餐饮"])
+        XCTAssertEqual(details.map(\.amountInCents), [1_500, 1_000, 500])
     }
 
     func testDailyExpensePointsFillEveryDayOfLeapMonthWithZeros() throws {

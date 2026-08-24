@@ -47,6 +47,11 @@ struct MonthlyReportSnapshot: Equatable {
     let dailyExpensePoints: [DailyExpensePoint]
 }
 
+private struct ReportCategoryHierarchyKey: Hashable {
+    let categoryID: UUID
+    let subcategoryID: UUID?
+}
+
 enum ReportService {
     static func categorySlice(
         at accumulatedValue: Double,
@@ -166,31 +171,24 @@ enum ReportService {
                 && categoryIDs.contains($0.categoryID)
         }
 
-        if slice.isMerged {
-            let categoryByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
-            return Dictionary(grouping: matchingTransactions, by: \.categoryID)
-                .map { categoryID, transactions in
-                    ReportDetailItem(
-                        id: "category:\(categoryID.uuidString)",
-                        name: categoryByID[categoryID]?.name ?? "未分类",
-                        amountInCents: safeSum(transactions.map(\.amountInCents))
-                    )
-                }
-                .sorted { lhs, rhs in
-                    if lhs.amountInCents != rhs.amountInCents {
-                        return lhs.amountInCents > rhs.amountInCents
-                    }
-                    return lhs.id < rhs.id
-                }
-        }
-
+        let categoryByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
         let subcategoryByID = Dictionary(uniqueKeysWithValues: subcategories.map { ($0.id, $0) })
-        return Dictionary(grouping: matchingTransactions, by: \.subcategoryID)
-            .map { subcategoryID, transactions in
-                let id = subcategoryID.map { "subcategory:\($0.uuidString)" } ?? "uncategorized"
+        return Dictionary(grouping: matchingTransactions) { transaction in
+            ReportCategoryHierarchyKey(
+                categoryID: transaction.categoryID,
+                subcategoryID: transaction.subcategoryID
+            )
+        }
+            .map { hierarchy, transactions in
+                let categoryName = categoryByID[hierarchy.categoryID]?.name ?? "未分类"
+                let name = hierarchy.subcategoryID
+                    .flatMap { subcategoryByID[$0]?.name }
+                    .map { "\(categoryName) · \($0)" }
+                    ?? categoryName
+                let subcategoryID = hierarchy.subcategoryID?.uuidString ?? "primary"
                 return ReportDetailItem(
-                    id: id,
-                    name: subcategoryID.flatMap { subcategoryByID[$0]?.name } ?? "未细分",
+                    id: "category:\(hierarchy.categoryID.uuidString):subcategory:\(subcategoryID)",
+                    name: name,
                     amountInCents: safeSum(transactions.map(\.amountInCents))
                 )
             }
