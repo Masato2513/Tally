@@ -18,6 +18,7 @@ struct CategoryManagementView: View {
     @State private var categoryOrderDraft: [UUID] = []
     @State private var pendingDeleteCategory: LedgerCategory?
     @State private var isShowingDeleteConfirmation = false
+    @State private var selectedCategoryID: UUID?
 
     private var managedCategories: [LedgerCategory] {
         CategoryManagementService.categories(of: selectedType, from: categories)
@@ -65,6 +66,16 @@ struct CategoryManagementView: View {
             }
         }
         .navigationTitle("分类管理")
+        .navigationDestination(item: $selectedCategoryID) { categoryID in
+            if let category = categories.first(where: { $0.id == categoryID }) {
+                CategoryDetailView(category: category)
+            } else {
+                ContentUnavailableView(
+                    "分类不存在",
+                    systemImage: "folder.badge.questionmark"
+                )
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if editMode.isEditing {
@@ -112,27 +123,32 @@ struct CategoryManagementView: View {
         if editMode.isEditing {
             categoryRow(category)
         } else {
-            NavigationLink {
-                CategoryDetailView(category: category)
-            } label: {
-                categoryRow(category)
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                if !category.isSystem {
-                    deleteButton(for: category)
+            categoryRow(category)
+                .onTapGesture {
+                    selectedCategoryID = category.id
                 }
-                visibilityButton(for: category)
-            }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("查看分类详情")
+                .accessibilityAction {
+                    selectedCategoryID = category.id
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    if !category.isSystem {
+                        deleteButton(for: category)
+                    }
+                    visibilityButton(for: category)
+                }
         }
     }
 
     private func categoryRow(_ category: LedgerCategory) -> some View {
-        HStack(spacing: 14) {
+        HStack(alignment: .center, spacing: 14) {
             Image(systemName: category.symbolName)
                 .font(.title3)
                 .foregroundStyle(LedgerCategoryColor.resolve(for: category).color)
                 .opacity(category.isHidden ? 0.45 : 1)
                 .frame(width: 28)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(category.name)
@@ -142,15 +158,25 @@ struct CategoryManagementView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer()
+            Spacer(minLength: 8)
 
             if category.isHidden {
                 Text("已隐藏")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            if !editMode.isEditing {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
+        .frame(minHeight: 44)
+        .contentShape(.rect)
         .accessibilityElement(children: .combine)
     }
 

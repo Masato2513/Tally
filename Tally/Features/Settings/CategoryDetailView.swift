@@ -175,18 +175,20 @@ struct CategoryDetailView: View {
         if subcategory.isSystem {
             subcategoryLabel(subcategory)
         } else {
-            Button {
-                editingSubcategory = subcategory
-            } label: {
-                subcategoryLabel(subcategory)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("编辑子分类")
+            subcategoryLabel(subcategory)
+                .onTapGesture {
+                    editingSubcategory = subcategory
+                }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("编辑子分类")
+                .accessibilityAction {
+                    editingSubcategory = subcategory
+                }
         }
     }
 
     private func subcategoryLabel(_ subcategory: LedgerSubcategory) -> some View {
-        HStack {
+        HStack(alignment: .center, spacing: 12) {
             Text(subcategory.name)
                 .foregroundStyle(subcategory.isHidden ? .secondary : .primary)
 
@@ -203,6 +205,7 @@ struct CategoryDetailView: View {
                     .accessibilityHidden(true)
             }
         }
+        .frame(minHeight: 44)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
     }
