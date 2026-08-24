@@ -6,7 +6,7 @@
 import SwiftData
 import SwiftUI
 
-struct CalendarReportView: View {
+struct CalendarReportView<Header: View>: View {
     private struct CalendarSlot: Identifiable {
         let id: Int
         let summary: CalendarDaySummary?
@@ -16,8 +16,17 @@ struct CalendarReportView: View {
     @State private var isPresentingMonthPicker = false
     @State private var selectedDay: CalendarDaySummary?
 
+    private let header: Header
     private let calendar = Calendar.autoupdatingCurrent
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 5), count: 7)
+
+    init(
+        selectedMonth: Binding<Date>,
+        @ViewBuilder header: () -> Header
+    ) {
+        _selectedMonth = selectedMonth
+        self.header = header()
+    }
 
     private func slots(for daySummaries: [CalendarDaySummary]) -> [CalendarSlot] {
         let blankCount = CalendarReportService.leadingBlankCount(
@@ -55,7 +64,7 @@ struct CalendarReportView: View {
         }
     }
 
-    private func content(transactions: [LedgerTransaction]) -> some View {
+    private func content(transactions: [CurrentLedgerTransaction]) -> some View {
         let snapshot = CalendarReportService.monthSnapshot(
             for: transactions,
             inMonthContaining: selectedMonth,
@@ -64,6 +73,8 @@ struct CalendarReportView: View {
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                header
+
                 VStack(alignment: .leading, spacing: 16) {
                     monthNavigation
 

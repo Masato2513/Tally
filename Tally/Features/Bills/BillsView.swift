@@ -9,35 +9,35 @@ import SwiftUI
 struct BillsView: View {
     private struct DayGroup: Identifiable {
         let date: Date
-        let transactions: [LedgerTransaction]
+        let transactions: [CurrentLedgerTransaction]
 
         var id: Date { date }
     }
 
     private struct ContentSnapshot {
-        let monthlyTransactions: [LedgerTransaction]
+        let monthlyTransactions: [CurrentLedgerTransaction]
         let monthlySummary: MonthlyLedgerSummary
         let dayGroups: [DayGroup]
         let categoryLookup: LedgerCategoryLookup
     }
 
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \LedgerCategory.sortOrder)
-    private var categories: [LedgerCategory]
-    @Query(sort: \LedgerSubcategory.sortOrder)
-    private var subcategories: [LedgerSubcategory]
+    @Query(sort: \CurrentLedgerCategory.sortOrder)
+    private var categories: [CurrentLedgerCategory]
+    @Query(sort: \CurrentLedgerSubcategory.sortOrder)
+    private var subcategories: [CurrentLedgerSubcategory]
 
     @State private var selectedMonth = Date.now
     @State private var sortOrder: BillsSortOrder = .time
     @State private var isPresentingMonthPicker = false
-    @State private var editingTransaction: LedgerTransaction?
-    @State private var pendingDeleteTransaction: LedgerTransaction?
+    @State private var editingTransaction: CurrentLedgerTransaction?
+    @State private var pendingDeleteTransaction: CurrentLedgerTransaction?
     @State private var isShowingDeleteConfirmation = false
     @State private var isShowingDeleteError = false
 
     private let calendar = Calendar.autoupdatingCurrent
 
-    private func contentSnapshot(for transactions: [LedgerTransaction]) -> ContentSnapshot {
+    private func contentSnapshot(for transactions: [CurrentLedgerTransaction]) -> ContentSnapshot {
         let monthlyTransactions = BillsService.transactions(
             inMonthContaining: selectedMonth,
             from: transactions,
@@ -115,7 +115,7 @@ struct BillsView: View {
         }
     }
 
-    private func content(transactions: [LedgerTransaction]) -> some View {
+    private func content(transactions: [CurrentLedgerTransaction]) -> some View {
         let snapshot = contentSnapshot(for: transactions)
 
         return List {
@@ -202,7 +202,7 @@ struct BillsView: View {
     }
 
     private func amountSortedSection(
-        transactions: [LedgerTransaction],
+        transactions: [CurrentLedgerTransaction],
         categoryLookup: LedgerCategoryLookup
     ) -> some View {
         Section("按金额从高到低") {
@@ -233,7 +233,7 @@ struct BillsView: View {
     }
 
     private func transactionRow(
-        _ transaction: LedgerTransaction,
+        _ transaction: CurrentLedgerTransaction,
         showsDate: Bool,
         categoryLookup: LedgerCategoryLookup
     ) -> some View {
@@ -291,7 +291,7 @@ struct BillsView: View {
         BillsView()
     }
     .modelContainer(
-        for: [LedgerTransaction.self, LedgerCategory.self, LedgerSubcategory.self],
+        for: [CurrentLedgerTransaction.self, CurrentLedgerCategory.self, CurrentLedgerSubcategory.self],
         inMemory: true
     )
 }

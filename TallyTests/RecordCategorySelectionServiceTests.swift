@@ -9,7 +9,7 @@ import XCTest
 @MainActor
 final class RecordCategorySelectionServiceTests: XCTestCase {
     func testDefaultExpenseCategoryUsesFirstVisibleCategoryBySortOrder() {
-        let shopping = LedgerCategory(
+        let shopping = CurrentLedgerCategory(
             systemKey: "expense.shopping",
             name: "购物",
             type: .expense,
@@ -17,7 +17,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
             sortOrder: 1,
             isSystem: true
         )
-        let food = LedgerCategory(
+        let food = CurrentLedgerCategory(
             systemKey: "expense.food",
             name: "餐饮",
             type: .expense,
@@ -35,7 +35,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
     }
 
     func testHiddenFirstCategoryFallsBackToNextVisibleCategory() {
-        let food = LedgerCategory(
+        let food = CurrentLedgerCategory(
             systemKey: "expense.food",
             name: "餐饮",
             type: .expense,
@@ -44,7 +44,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
             isSystem: true,
             isHidden: true
         )
-        let daily = LedgerCategory(
+        let daily = CurrentLedgerCategory(
             systemKey: "expense.daily",
             name: "日常",
             type: .expense,
@@ -60,7 +60,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
     }
 
     func testSoftDeletedFirstCategoryFallsBackToNextVisibleCategory() {
-        let food = LedgerCategory(
+        let food = CurrentLedgerCategory(
             systemKey: "expense.food",
             name: "餐饮",
             type: .expense,
@@ -69,7 +69,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
             isSystem: true,
             isSoftDeleted: true
         )
-        let shopping = LedgerCategory(
+        let shopping = CurrentLedgerCategory(
             systemKey: "expense.shopping",
             name: "购物",
             type: .expense,
@@ -85,7 +85,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
     }
 
     func testDefaultExpenseCategoryIsNilWhenNoVisibleExpenseCategoryExists() {
-        let hiddenExpense = LedgerCategory(
+        let hiddenExpense = CurrentLedgerCategory(
             name: "隐藏支出",
             type: .expense,
             symbolName: "eye.slash",
@@ -93,7 +93,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
             isSystem: false,
             isHidden: true
         )
-        let income = LedgerCategory(
+        let income = CurrentLedgerCategory(
             name: "工资",
             type: .income,
             symbolName: "banknote",
@@ -109,7 +109,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
     }
 
     func testOptionsStartWithPrimaryAndThenUseSubcategoryOrder() {
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             name: "医疗",
             type: .expense,
             symbolName: "cross.case",
@@ -117,19 +117,19 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
             isSystem: true
         )
         let otherCategoryID = UUID()
-        let treatment = LedgerSubcategory(
+        let treatment = CurrentLedgerSubcategory(
             name: "治疗",
             categoryID: category.id,
             sortOrder: 1,
             isSystem: true
         )
-        let medicine = LedgerSubcategory(
+        let medicine = CurrentLedgerSubcategory(
             name: "药品",
             categoryID: category.id,
             sortOrder: 0,
             isSystem: true
         )
-        let unrelated = LedgerSubcategory(
+        let unrelated = CurrentLedgerSubcategory(
             name: "其他",
             categoryID: otherCategoryID,
             sortOrder: 0,
@@ -148,20 +148,20 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
     }
 
     func testOptionsExcludeSoftDeletedSubcategories() {
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
             sortOrder: 0,
             isSystem: false
         )
-        let active = LedgerSubcategory(
+        let active = CurrentLedgerSubcategory(
             name: "用品",
             categoryID: category.id,
             sortOrder: 0,
             isSystem: false
         )
-        let deleted = LedgerSubcategory(
+        let deleted = CurrentLedgerSubcategory(
             name: "医疗",
             categoryID: category.id,
             sortOrder: 1,
@@ -178,7 +178,7 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
     }
 
     func testCategoryWithoutSubcategoriesOnlyProvidesPrimaryOption() {
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             name: "其他收益",
             type: .income,
             symbolName: "plus.circle",

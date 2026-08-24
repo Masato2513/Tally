@@ -16,8 +16,8 @@ final class DefaultCategorySeederTests: XCTestCase {
 
         try DefaultCategorySeeder.seedIfNeeded(in: context)
 
-        let categories = try context.fetch(FetchDescriptor<LedgerCategory>())
-        let subcategories = try context.fetch(FetchDescriptor<LedgerSubcategory>())
+        let categories = try context.fetch(FetchDescriptor<CurrentLedgerCategory>())
+        let subcategories = try context.fetch(FetchDescriptor<CurrentLedgerSubcategory>())
 
         XCTAssertEqual(categories.count, 15)
         XCTAssertEqual(categories.filter { $0.type == .expense }.count, 12)
@@ -46,15 +46,15 @@ final class DefaultCategorySeederTests: XCTestCase {
         let context = ModelContext(container)
         try DefaultCategorySeeder.seedIfNeeded(in: context)
 
-        let categories = try context.fetch(FetchDescriptor<LedgerCategory>())
+        let categories = try context.fetch(FetchDescriptor<CurrentLedgerCategory>())
         let foodCategory = try XCTUnwrap(categories.first { $0.systemKey == "expense.food" })
         foodCategory.isHidden = true
         try context.save()
 
         try DefaultCategorySeeder.seedIfNeeded(in: context)
 
-        let reseededCategories = try context.fetch(FetchDescriptor<LedgerCategory>())
-        let reseededSubcategories = try context.fetch(FetchDescriptor<LedgerSubcategory>())
+        let reseededCategories = try context.fetch(FetchDescriptor<CurrentLedgerCategory>())
+        let reseededSubcategories = try context.fetch(FetchDescriptor<CurrentLedgerSubcategory>())
         let reseededFoodCategory = try XCTUnwrap(
             reseededCategories.first { $0.systemKey == "expense.food" }
         )
@@ -66,9 +66,9 @@ final class DefaultCategorySeederTests: XCTestCase {
 
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([
-            LedgerTransaction.self,
-            LedgerCategory.self,
-            LedgerSubcategory.self
+            CurrentLedgerTransaction.self,
+            CurrentLedgerCategory.self,
+            CurrentLedgerSubcategory.self
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, configurations: [configuration])

@@ -39,8 +39,8 @@ enum CategoryManagementService {
 
     static func categories(
         of type: LedgerTransactionType,
-        from categories: [LedgerCategory]
-    ) -> [LedgerCategory] {
+        from categories: [CurrentLedgerCategory]
+    ) -> [CurrentLedgerCategory] {
         categories
             .filter { $0.type == type && !$0.isSoftDeleted }
             .sorted(by: categoryOrder)
@@ -48,8 +48,8 @@ enum CategoryManagementService {
 
     static func subcategories(
         of categoryID: UUID,
-        from subcategories: [LedgerSubcategory]
-    ) -> [LedgerSubcategory] {
+        from subcategories: [CurrentLedgerSubcategory]
+    ) -> [CurrentLedgerSubcategory] {
         subcategories
             .filter { $0.categoryID == categoryID && !$0.isSoftDeleted }
             .sorted(by: subcategoryOrder)
@@ -61,10 +61,10 @@ enum CategoryManagementService {
         type: LedgerTransactionType,
         symbolName: String,
         color: LedgerCategoryColor = .blue,
-        among categories: [LedgerCategory],
+        among categories: [CurrentLedgerCategory],
         in context: ModelContext,
         now: Date = .now
-    ) throws -> LedgerCategory {
+    ) throws -> CurrentLedgerCategory {
         let normalizedName = try validatedName(
             name,
             maximumLength: maximumCategoryNameLength,
@@ -77,7 +77,7 @@ enum CategoryManagementService {
             .map(\.sortOrder)
             .max()
             .map { $0 + 1 } ?? 0
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             name: normalizedName,
             type: type,
             symbolName: symbolName,
@@ -88,16 +88,21 @@ enum CategoryManagementService {
             updatedAt: now
         )
         context.insert(category)
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
         return category
     }
 
     static func updateCategory(
-        _ category: LedgerCategory,
+        _ category: CurrentLedgerCategory,
         name: String,
         symbolName: String,
         color: LedgerCategoryColor? = nil,
-        among categories: [LedgerCategory],
+        among categories: [CurrentLedgerCategory],
         in context: ModelContext,
         now: Date = .now
     ) throws {
@@ -140,7 +145,7 @@ enum CategoryManagementService {
     }
 
     static func setCategoryHidden(
-        _ category: LedgerCategory,
+        _ category: CurrentLedgerCategory,
         hidden: Bool,
         in context: ModelContext,
         now: Date = .now
@@ -162,7 +167,7 @@ enum CategoryManagementService {
     }
 
     static func applyCategoryOrder(
-        _ orderedCategories: [LedgerCategory],
+        _ orderedCategories: [CurrentLedgerCategory],
         in context: ModelContext,
         now: Date = .now
     ) throws {
@@ -188,11 +193,11 @@ enum CategoryManagementService {
     @discardableResult
     static func createSubcategory(
         name: String,
-        for category: LedgerCategory,
-        among subcategories: [LedgerSubcategory],
+        for category: CurrentLedgerCategory,
+        among subcategories: [CurrentLedgerSubcategory],
         in context: ModelContext,
         now: Date = .now
-    ) throws -> LedgerSubcategory {
+    ) throws -> CurrentLedgerSubcategory {
         guard !category.isSoftDeleted else {
             throw CategoryManagementError.cannotModifyDeletedCategory
         }
@@ -205,7 +210,7 @@ enum CategoryManagementService {
             existingNames: siblings.lazy.map(\.name)
         )
         let nextOrder = siblings.map(\.sortOrder).max().map { $0 + 1 } ?? 0
-        let subcategory = LedgerSubcategory(
+        let subcategory = CurrentLedgerSubcategory(
             name: normalizedName,
             categoryID: category.id,
             sortOrder: nextOrder,
@@ -214,14 +219,19 @@ enum CategoryManagementService {
             updatedAt: now
         )
         context.insert(subcategory)
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
         return subcategory
     }
 
     static func updateSubcategory(
-        _ subcategory: LedgerSubcategory,
+        _ subcategory: CurrentLedgerSubcategory,
         name: String,
-        among subcategories: [LedgerSubcategory],
+        among subcategories: [CurrentLedgerSubcategory],
         in context: ModelContext,
         now: Date = .now
     ) throws {
@@ -255,7 +265,7 @@ enum CategoryManagementService {
     }
 
     static func setSubcategoryHidden(
-        _ subcategory: LedgerSubcategory,
+        _ subcategory: CurrentLedgerSubcategory,
         hidden: Bool,
         in context: ModelContext,
         now: Date = .now
@@ -277,7 +287,7 @@ enum CategoryManagementService {
     }
 
     static func applySubcategoryOrder(
-        _ orderedSubcategories: [LedgerSubcategory],
+        _ orderedSubcategories: [CurrentLedgerSubcategory],
         in context: ModelContext,
         now: Date = .now
     ) throws {
@@ -301,8 +311,8 @@ enum CategoryManagementService {
     }
 
     static func softDeleteCategory(
-        _ category: LedgerCategory,
-        subcategories: [LedgerSubcategory],
+        _ category: CurrentLedgerCategory,
+        subcategories: [CurrentLedgerSubcategory],
         in context: ModelContext,
         now: Date = .now
     ) throws {
@@ -340,7 +350,7 @@ enum CategoryManagementService {
     }
 
     static func softDeleteSubcategory(
-        _ subcategory: LedgerSubcategory,
+        _ subcategory: CurrentLedgerSubcategory,
         in context: ModelContext,
         now: Date = .now
     ) throws {
@@ -384,14 +394,14 @@ private extension CategoryManagementService {
         return normalizedName
     }
 
-    static func categoryOrder(_ lhs: LedgerCategory, _ rhs: LedgerCategory) -> Bool {
+    static func categoryOrder(_ lhs: CurrentLedgerCategory, _ rhs: CurrentLedgerCategory) -> Bool {
         if lhs.sortOrder != rhs.sortOrder {
             return lhs.sortOrder < rhs.sortOrder
         }
         return lhs.id.uuidString < rhs.id.uuidString
     }
 
-    static func subcategoryOrder(_ lhs: LedgerSubcategory, _ rhs: LedgerSubcategory) -> Bool {
+    static func subcategoryOrder(_ lhs: CurrentLedgerSubcategory, _ rhs: CurrentLedgerSubcategory) -> Bool {
         if lhs.sortOrder != rhs.sortOrder {
             return lhs.sortOrder < rhs.sortOrder
         }

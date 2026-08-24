@@ -33,15 +33,15 @@ enum BillsSortOrder: String, CaseIterable, Identifiable {
 enum BillsService {
     static func transactions(
         inMonthContaining date: Date,
-        from transactions: [LedgerTransaction],
+        from transactions: [CurrentLedgerTransaction],
         sortedBy sortOrder: BillsSortOrder,
         calendar: Calendar = .autoupdatingCurrent
-    ) -> [LedgerTransaction] {
+    ) -> [CurrentLedgerTransaction] {
         guard let interval = CalendarIntervals.month(containing: date, calendar: calendar) else {
             return []
         }
 
-        let monthlyTransactions = transactions.filter { interval.contains($0.date) }
+        let monthlyTransactions = transactions.filter { interval.containsHalfOpen($0.date) }
         switch sortOrder {
         case .time:
             return monthlyTransactions.sorted { lhs, rhs in

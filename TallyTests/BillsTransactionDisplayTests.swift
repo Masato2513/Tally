@@ -11,13 +11,13 @@ final class BillsTransactionDisplayTests: XCTestCase {
     func testDateAndNoteShareOneSecondaryLineWithoutTime() throws {
         let date = try makeDate(year: 2026, month: 8, day: 22, hour: 19, minute: 3)
         let category = makeCategory()
-        let subcategory = LedgerSubcategory(
+        let subcategory = CurrentLedgerSubcategory(
             name: "日常",
             categoryID: category.id,
             sortOrder: 0,
             isSystem: true
         )
-        let transaction = LedgerTransaction(
+        let transaction = CurrentLedgerTransaction(
             type: .expense,
             amountInCents: 5_538,
             date: date,
@@ -41,7 +41,7 @@ final class BillsTransactionDisplayTests: XCTestCase {
 
     func testDateOnlyIsShownWhenTheListHasNoDateContext() throws {
         let category = makeCategory()
-        let transaction = LedgerTransaction(
+        let transaction = CurrentLedgerTransaction(
             type: .expense,
             amountInCents: 4_520,
             date: try makeDate(year: 2026, month: 8, day: 22, hour: 9, minute: 30),
@@ -60,7 +60,7 @@ final class BillsTransactionDisplayTests: XCTestCase {
 
     func testGroupedListsOnlyUseTheNoteAsSecondaryText() throws {
         let category = makeCategory()
-        let transaction = LedgerTransaction(
+        let transaction = CurrentLedgerTransaction(
             type: .expense,
             amountInCents: 2_400,
             date: try makeDate(year: 2026, month: 8, day: 22, hour: 9, minute: 30),
@@ -78,8 +78,8 @@ final class BillsTransactionDisplayTests: XCTestCase {
         XCTAssertEqual(display.secondaryText, "日用品")
     }
 
-    private func makeCategory() -> LedgerCategory {
-        LedgerCategory(
+    private func makeCategory() -> CurrentLedgerCategory {
+        CurrentLedgerCategory(
             systemKey: "expense.shopping",
             name: "购物",
             type: .expense,

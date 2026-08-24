@@ -6,10 +6,10 @@
 import SwiftUI
 
 struct RecordCategoryPicker: View {
-    let categories: [LedgerCategory]
-    let subcategories: [LedgerSubcategory]
-    let historicalCategory: LedgerCategory?
-    let historicalSubcategory: LedgerSubcategory?
+    let categories: [CurrentLedgerCategory]
+    let subcategories: [CurrentLedgerSubcategory]
+    let historicalCategory: CurrentLedgerCategory?
+    let historicalSubcategory: CurrentLedgerSubcategory?
     @Binding var selectedCategoryID: UUID?
     @Binding var selectedSubcategoryID: UUID?
 
@@ -38,7 +38,7 @@ struct RecordCategoryPicker: View {
         }
     }
 
-    private var displayedHistoricalCategory: LedgerCategory? {
+    private var displayedHistoricalCategory: CurrentLedgerCategory? {
         guard let historicalCategory,
               historicalCategory.isSoftDeleted,
               selectedCategoryID == historicalCategory.id
@@ -48,7 +48,7 @@ struct RecordCategoryPicker: View {
         return historicalCategory
     }
 
-    private func historicalCategoryLabel(_ category: LedgerCategory) -> some View {
+    private func historicalCategoryLabel(_ category: CurrentLedgerCategory) -> some View {
         categoryLabel(
             category,
             title: historicalDisplayTitle(for: category),
@@ -60,7 +60,7 @@ struct RecordCategoryPicker: View {
     }
 
     @ViewBuilder
-    private func categoryButton(_ category: LedgerCategory) -> some View {
+    private func categoryButton(_ category: CurrentLedgerCategory) -> some View {
         let isCategorySelected = selectedCategoryID == category.id
         let categorySubcategories = subcategories.filter { $0.categoryID == category.id }
 
@@ -118,7 +118,7 @@ struct RecordCategoryPicker: View {
     }
 
     private func categoryLabel(
-        _ category: LedgerCategory,
+        _ category: CurrentLedgerCategory,
         title: String,
         isSelected: Bool
     ) -> some View {
@@ -155,7 +155,7 @@ struct RecordCategoryPicker: View {
             && selectedSubcategoryID == option.subcategoryID
     }
 
-    private func displayTitle(for category: LedgerCategory) -> String {
+    private func displayTitle(for category: CurrentLedgerCategory) -> String {
         guard selectedCategoryID == category.id,
               let selectedSubcategoryID
         else {
@@ -169,7 +169,7 @@ struct RecordCategoryPicker: View {
         return "\(category.name) · \(subcategory.name)"
     }
 
-    private func historicalDisplayTitle(for category: LedgerCategory) -> String {
+    private func historicalDisplayTitle(for category: CurrentLedgerCategory) -> String {
         guard let historicalSubcategory,
               selectedSubcategoryID == historicalSubcategory.id,
               historicalSubcategory.categoryID == category.id
@@ -179,7 +179,7 @@ struct RecordCategoryPicker: View {
         return "\(category.name) · \(historicalSubcategory.name)"
     }
 
-    private func selectionAccessibilityValue(for category: LedgerCategory) -> String {
+    private func selectionAccessibilityValue(for category: CurrentLedgerCategory) -> String {
         guard selectedCategoryID == category.id else { return "未选择" }
         return "已选择，\(displayTitle(for: category))"
     }

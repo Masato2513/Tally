@@ -8,23 +8,23 @@ import SwiftUI
 
 struct CategoryManagementView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var categories: [LedgerCategory]
-    @Query private var subcategories: [LedgerSubcategory]
+    @Query private var categories: [CurrentLedgerCategory]
+    @Query private var subcategories: [CurrentLedgerSubcategory]
 
     @State private var selectedType: LedgerTransactionType = .expense
     @State private var isPresentingNewCategory = false
     @State private var errorMessage: String?
     @State private var editMode: EditMode = .inactive
     @State private var categoryOrderDraft: [UUID] = []
-    @State private var pendingDeleteCategory: LedgerCategory?
+    @State private var pendingDeleteCategory: CurrentLedgerCategory?
     @State private var isShowingDeleteConfirmation = false
     @State private var selectedCategoryID: UUID?
 
-    private var managedCategories: [LedgerCategory] {
+    private var managedCategories: [CurrentLedgerCategory] {
         CategoryManagementService.categories(of: selectedType, from: categories)
     }
 
-    private var displayedCategories: [LedgerCategory] {
+    private var displayedCategories: [CurrentLedgerCategory] {
         guard editMode.isEditing else { return managedCategories }
         let categoriesByID = Dictionary(
             uniqueKeysWithValues: managedCategories.map { ($0.id, $0) }
@@ -33,38 +33,41 @@ struct CategoryManagementView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        List {
             Picker("分类类型", selection: $selectedType) {
                 ForEach(LedgerTransactionType.allCases, id: \.self) { type in
                     Text(type.title).tag(type)
                 }
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.bottom, 8)
             .disabled(editMode.isEditing)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
 
-            List {
-                Section {
-                    ForEach(displayedCategories) { category in
-                        categoryListRow(category)
-                    }
-                    .onMove(perform: moveCategories)
-                } footer: {
-                    Text("隐藏的分类不会出现在新账单中，历史账单仍会完整保留。")
-                }
-            }
-            .environment(\.editMode, $editMode)
-            .overlay {
+            Section {
                 if managedCategories.isEmpty {
                     ContentUnavailableView(
                         "暂无分类",
                         systemImage: "square.grid.2x2",
                         description: Text("点击右上角加号创建第一个分类。")
                     )
+                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, 36)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                } else {
+                    ForEach(displayedCategories) { category in
+                        categoryListRow(category)
+                    }
+                    .onMove(perform: moveCategories)
                 }
+            } footer: {
+                Text("隐藏的分类不会出现在新账单中，历史账单仍会完整保留。")
             }
         }
+        .environment(\.editMode, $editMode)
         .navigationTitle("分类管理")
         .navigationDestination(item: $selectedCategoryID) { categoryID in
             if let category = categories.first(where: { $0.id == categoryID }) {
@@ -119,7 +122,7 @@ struct CategoryManagementView: View {
     }
 
     @ViewBuilder
-    private func categoryListRow(_ category: LedgerCategory) -> some View {
+    private func categoryListRow(_ category: CurrentLedgerCategory) -> some View {
         if editMode.isEditing {
             categoryRow(category)
         } else {
@@ -141,7 +144,7 @@ struct CategoryManagementView: View {
         }
     }
 
-    private func categoryRow(_ category: LedgerCategory) -> some View {
+    private func categoryRow(_ category: CurrentLedgerCategory) -> some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: category.symbolName)
                 .font(.title3)
@@ -180,7 +183,7 @@ struct CategoryManagementView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func subcategoryDescription(for category: LedgerCategory) -> String {
+    private func subcategoryDescription(for category: CurrentLedgerCategory) -> String {
         let count = subcategories.count {
             $0.categoryID == category.id && !$0.isSoftDeleted
         }
@@ -188,14 +191,14 @@ struct CategoryManagementView: View {
         return count == 0 ? ownership : "\(ownership) · \(count) 个子分类"
     }
 
-    private func visibilityButton(for category: LedgerCategory) -> some View {
+    private func visibilityButton(for category: CurrentLedgerCategory) -> some View {
         Button(category.isHidden ? "显示" : "隐藏") {
             setHidden(!category.isHidden, for: category)
         }
         .tint(category.isHidden ? .green : .orange)
     }
 
-    private func deleteButton(for category: LedgerCategory) -> some View {
+    private func deleteButton(for category: CurrentLedgerCategory) -> some View {
         Button("删除", systemImage: "trash", role: .destructive) {
             pendingDeleteCategory = category
             isShowingDeleteConfirmation = true
@@ -203,7 +206,7 @@ struct CategoryManagementView: View {
         .tint(.red)
     }
 
-    private func setHidden(_ hidden: Bool, for category: LedgerCategory) {
+    private func setHidden(_ hidden: Bool, for category: CurrentLedgerCategory) {
         do {
             try CategoryManagementService.setCategoryHidden(
                 category,

@@ -8,27 +8,27 @@ import SwiftUI
 
 struct CategoryDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var allSubcategories: [LedgerSubcategory]
+    @Query private var allSubcategories: [CurrentLedgerSubcategory]
 
-    let category: LedgerCategory
+    let category: CurrentLedgerCategory
 
     @State private var isPresentingCategoryEditor = false
     @State private var isPresentingNewSubcategory = false
-    @State private var editingSubcategory: LedgerSubcategory?
+    @State private var editingSubcategory: CurrentLedgerSubcategory?
     @State private var errorMessage: String?
     @State private var editMode: EditMode = .inactive
     @State private var subcategoryOrderDraft: [UUID] = []
-    @State private var pendingDeleteSubcategory: LedgerSubcategory?
+    @State private var pendingDeleteSubcategory: CurrentLedgerSubcategory?
     @State private var isShowingDeleteConfirmation = false
 
-    private var subcategories: [LedgerSubcategory] {
+    private var subcategories: [CurrentLedgerSubcategory] {
         CategoryManagementService.subcategories(
             of: category.id,
             from: allSubcategories
         )
     }
 
-    private var displayedSubcategories: [LedgerSubcategory] {
+    private var displayedSubcategories: [CurrentLedgerSubcategory] {
         guard editMode.isEditing else { return subcategories }
         let subcategoriesByID = Dictionary(
             uniqueKeysWithValues: subcategories.map { ($0.id, $0) }
@@ -156,7 +156,7 @@ struct CategoryDetailView: View {
     }
 
     @ViewBuilder
-    private func subcategoryListRow(_ subcategory: LedgerSubcategory) -> some View {
+    private func subcategoryListRow(_ subcategory: CurrentLedgerSubcategory) -> some View {
         if editMode.isEditing {
             subcategoryLabel(subcategory)
         } else {
@@ -171,7 +171,7 @@ struct CategoryDetailView: View {
     }
 
     @ViewBuilder
-    private func subcategoryRow(_ subcategory: LedgerSubcategory) -> some View {
+    private func subcategoryRow(_ subcategory: CurrentLedgerSubcategory) -> some View {
         if subcategory.isSystem {
             subcategoryLabel(subcategory)
         } else {
@@ -187,7 +187,7 @@ struct CategoryDetailView: View {
         }
     }
 
-    private func subcategoryLabel(_ subcategory: LedgerSubcategory) -> some View {
+    private func subcategoryLabel(_ subcategory: CurrentLedgerSubcategory) -> some View {
         HStack(alignment: .center, spacing: 12) {
             Text(subcategory.name)
                 .foregroundStyle(subcategory.isHidden ? .secondary : .primary)
@@ -227,7 +227,7 @@ struct CategoryDetailView: View {
         )
     }
 
-    private func subcategoryVisibilityButton(for subcategory: LedgerSubcategory) -> some View {
+    private func subcategoryVisibilityButton(for subcategory: CurrentLedgerSubcategory) -> some View {
         Button(subcategory.isHidden ? "显示" : "隐藏") {
             do {
                 try CategoryManagementService.setSubcategoryHidden(
@@ -242,7 +242,7 @@ struct CategoryDetailView: View {
         .tint(subcategory.isHidden ? .green : .orange)
     }
 
-    private func subcategoryDeleteButton(for subcategory: LedgerSubcategory) -> some View {
+    private func subcategoryDeleteButton(for subcategory: CurrentLedgerSubcategory) -> some View {
         Button("删除", systemImage: "trash", role: .destructive) {
             pendingDeleteSubcategory = subcategory
             isShowingDeleteConfirmation = true

@@ -53,6 +53,16 @@ private struct ReportCategoryHierarchyKey: Hashable {
 }
 
 enum ReportService {
+    static func nearestDailyExpensePoint(
+        to date: Date,
+        in points: [DailyExpensePoint]
+    ) -> DailyExpensePoint? {
+        points.min { lhs, rhs in
+            abs(lhs.date.timeIntervalSince(date))
+                < abs(rhs.date.timeIntervalSince(date))
+        }
+    }
+
     static func categorySlice(
         at accumulatedValue: Double,
         in slices: [ExpenseCategorySlice]
@@ -70,8 +80,8 @@ enum ReportService {
     }
 
     static func monthlySnapshot(
-        for transactions: [LedgerTransaction],
-        categories: [LedgerCategory],
+        for transactions: [CurrentLedgerTransaction],
+        categories: [CurrentLedgerCategory],
         inMonthContaining date: Date,
         calendar: Calendar = .autoupdatingCurrent
     ) -> MonthlyReportSnapshot {
@@ -96,8 +106,8 @@ enum ReportService {
     }
 
     static func expenseCategorySlices(
-        for transactions: [LedgerTransaction],
-        categories: [LedgerCategory],
+        for transactions: [CurrentLedgerTransaction],
+        categories: [CurrentLedgerCategory],
         inMonthContaining date: Date,
         maximumSliceCount: Int = 6,
         calendar: Calendar = .autoupdatingCurrent
@@ -111,12 +121,12 @@ enum ReportService {
 
         let categoryByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
         let expenses = transactions.filter {
-            $0.type == .expense && interval.contains($0.date)
+            $0.type == .expense && interval.containsHalfOpen($0.date)
         }
         let grouped = Dictionary(grouping: expenses, by: \.categoryID)
 
         let sortedSlices = grouped.compactMap { categoryID, transactions -> ExpenseCategorySlice? in
-            let amount = safeSum(transactions.map(\.amountInCents))
+            let amount = MoneyArithmetic.sum(transactions.map(\.amountInCents))
             guard amount > 0 else { return nil }
             let category = categoryByID[categoryID]
             return ExpenseCategorySlice(
@@ -154,9 +164,9 @@ enum ReportService {
 
     static func detailItems(
         for slice: ExpenseCategorySlice,
-        transactions: [LedgerTransaction],
-        categories: [LedgerCategory],
-        subcategories: [LedgerSubcategory],
+        transactions: [CurrentLedgerTransaction],
+        categories: [CurrentLedgerCategory],
+        subcategories: [CurrentLedgerSubcategory],
         inMonthContaining date: Date,
         calendar: Calendar = .autoupdatingCurrent
     ) -> [ReportDetailItem] {
@@ -167,7 +177,7 @@ enum ReportService {
         let categoryIDs = Set(slice.categoryIDs)
         let matchingTransactions = transactions.filter {
             $0.type == .expense
-                && interval.contains($0.date)
+                && interval.containsHalfOpen($0.date)
                 && categoryIDs.contains($0.categoryID)
         }
 
@@ -189,7 +199,7 @@ enum ReportService {
                 return ReportDetailItem(
                     id: "category:\(hierarchy.categoryID.uuidString):subcategory:\(subcategoryID)",
                     name: name,
-                    amountInCents: safeSum(transactions.map(\.amountInCents))
+                    amountInCents: MoneyArithmetic.sum(transactions.map(\.amountInCents))
                 )
             }
             .sorted { lhs, rhs in
@@ -201,7 +211,7 @@ enum ReportService {
     }
 
     static func dailyExpensePoints(
-        for transactions: [LedgerTransaction],
+        for transactions: [CurrentLedgerTransaction],
         inMonthContaining date: Date,
         calendar: Calendar = .autoupdatingCurrent
     ) -> [DailyExpensePoint] {
@@ -210,12 +220,12 @@ enum ReportService {
         }
 
         let monthlyExpenses = transactions.filter {
-            $0.type == .expense && monthInterval.contains($0.date)
+            $0.type == .expense && monthInterval.containsHalfOpen($0.date)
         }
         let amountsByDay = Dictionary(grouping: monthlyExpenses) {
             calendar.startOfDay(for: $0.date)
         }
-        .mapValues { safeSum($0.map(\.amountInCents)) }
+        .mapValues { MoneyArithmetic.sum($0.map(\.amountInCents)) }
 
         var points: [DailyExpensePoint] = []
         var currentDate = monthInterval.start
@@ -240,16 +250,10 @@ private extension ReportService {
             id: "other",
             name: "其他",
             symbolName: "ellipsis.circle",
-            amountInCents: safeSum(slices.map(\.amountInCents)),
+            amountInCents: MoneyArithmetic.sum(slices.map(\.amountInCents)),
             categoryIDs: slices.flatMap(\.categoryIDs),
             isMerged: true
         )
     }
 
-    static func safeSum<S: Sequence>(_ values: S) -> Int64 where S.Element == Int64 {
-        values.reduce(into: 0) { result, value in
-            let (sum, overflow) = result.addingReportingOverflow(value)
-            result = overflow ? Int64.max : sum
-        }
-    }
 }

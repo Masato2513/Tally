@@ -36,7 +36,7 @@ enum LedgerCategoryColor: String, CaseIterable, Identifiable {
 
     var id: Self { self }
 
-    static func resolve(for category: LedgerCategory?) -> Self {
+    static func resolve(for category: CurrentLedgerCategory?) -> Self {
         guard let category else { return .gray }
         guard category.isSystem else {
             return Self(rawValue: category.colorRawValue) ?? .blue

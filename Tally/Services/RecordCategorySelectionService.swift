@@ -17,7 +17,7 @@ struct RecordCategoryOption: Identifiable, Equatable {
 
 enum RecordCategorySelectionService {
     static func defaultExpenseCategoryID(
-        in categories: [LedgerCategory]
+        in categories: [CurrentLedgerCategory]
     ) -> UUID? {
         categories
             .filter {
@@ -34,8 +34,8 @@ enum RecordCategorySelectionService {
     }
 
     static func options(
-        for category: LedgerCategory,
-        subcategories: [LedgerSubcategory]
+        for category: CurrentLedgerCategory,
+        subcategories: [CurrentLedgerSubcategory]
     ) -> [RecordCategoryOption] {
         let primary = RecordCategoryOption(
             categoryID: category.id,

@@ -9,10 +9,10 @@ import SwiftUI
 struct CategoryEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var categories: [LedgerCategory]
+    @Query private var categories: [CurrentLedgerCategory]
 
     let type: LedgerTransactionType
-    let category: LedgerCategory?
+    let category: CurrentLedgerCategory?
 
     @State private var name: String
     @State private var symbolName: String
@@ -31,7 +31,7 @@ struct CategoryEditorView: View {
         "leaf", "person.2", "sparkles", "music.note", "camera"
     ]
 
-    init(type: LedgerTransactionType, category: LedgerCategory? = nil) {
+    init(type: LedgerTransactionType, category: CurrentLedgerCategory? = nil) {
         self.type = type
         self.category = category
         _name = State(initialValue: category?.name ?? "")

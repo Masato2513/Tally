@@ -5,6 +5,13 @@
 
 import Foundation
 
+extension DateInterval {
+    /// 日历统计统一使用左闭右开区间，避免下一个自然日/月的零点被重复计入。
+    func containsHalfOpen(_ date: Date) -> Bool {
+        date >= start && date < end
+    }
+}
+
 enum CalendarIntervals {
     static func month(containing date: Date, calendar: Calendar = .autoupdatingCurrent) -> DateInterval? {
         calendar.dateInterval(of: .month, for: date)

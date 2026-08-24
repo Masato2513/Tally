@@ -40,7 +40,7 @@ final class ReportServiceTests: XCTestCase {
         let calendar = makeCalendar()
         let referenceDate = try makeDate(year: 2026, month: 8, day: 21, calendar: calendar)
         let categories = (0..<8).map { index in
-            LedgerCategory(
+            CurrentLedgerCategory(
                 name: "分类\(index + 1)",
                 type: .expense,
                 symbolName: "circle",
@@ -50,7 +50,7 @@ final class ReportServiceTests: XCTestCase {
         }
         let amounts: [Int64] = [8_000, 7_000, 6_000, 5_000, 4_000, 3_000, 2_000, 1_000]
         var transactions = try zip(categories, amounts).enumerated().map { index, pair in
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .expense,
                 amountInCents: pair.1,
                 date: try makeDate(
@@ -63,7 +63,7 @@ final class ReportServiceTests: XCTestCase {
             )
         }
         transactions.append(
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .income,
                 amountInCents: 99_000,
                 date: referenceDate,
@@ -71,7 +71,7 @@ final class ReportServiceTests: XCTestCase {
             )
         )
         transactions.append(
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .expense,
                 amountInCents: 88_000,
                 date: try makeDate(year: 2026, month: 7, day: 31, calendar: calendar),
@@ -97,20 +97,20 @@ final class ReportServiceTests: XCTestCase {
     func testCategoryDetailsGroupSubcategoriesAndUnspecifiedTransactions() throws {
         let calendar = makeCalendar()
         let referenceDate = try makeDate(year: 2026, month: 8, day: 21, calendar: calendar)
-        let food = LedgerCategory(
+        let food = CurrentLedgerCategory(
             name: "餐饮",
             type: .expense,
             symbolName: "fork.knife",
             sortOrder: 0,
             isSystem: false
         )
-        let meals = LedgerSubcategory(
+        let meals = CurrentLedgerSubcategory(
             name: "三餐",
             categoryID: food.id,
             sortOrder: 0,
             isSystem: false
         )
-        let coffee = LedgerSubcategory(
+        let coffee = CurrentLedgerSubcategory(
             name: "咖啡",
             categoryID: food.id,
             sortOrder: 1,
@@ -152,21 +152,21 @@ final class ReportServiceTests: XCTestCase {
     func testMergedCategoryDetailsKeepEachCategoryHierarchySeparate() throws {
         let calendar = makeCalendar()
         let referenceDate = try makeDate(year: 2026, month: 8, day: 21, calendar: calendar)
-        let food = LedgerCategory(
+        let food = CurrentLedgerCategory(
             name: "餐饮",
             type: .expense,
             symbolName: "fork.knife",
             sortOrder: 0,
             isSystem: true
         )
-        let shopping = LedgerCategory(
+        let shopping = CurrentLedgerCategory(
             name: "购物",
             type: .expense,
             symbolName: "bag",
             sortOrder: 1,
             isSystem: true
         )
-        let meals = LedgerSubcategory(
+        let meals = CurrentLedgerSubcategory(
             name: "三餐",
             categoryID: food.id,
             sortOrder: 0,
@@ -232,7 +232,7 @@ final class ReportServiceTests: XCTestCase {
                 date: try makeDate(year: 2024, month: 2, day: 29, calendar: calendar),
                 categoryID: categoryID
             ),
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .income,
                 amountInCents: 50_000,
                 date: try makeDate(year: 2024, month: 2, day: 3, calendar: calendar),
@@ -253,10 +253,82 @@ final class ReportServiceTests: XCTestCase {
         XCTAssertEqual(points.filter { $0.amountInCents == 0 }.count, 27)
     }
 
+    func testReportCalculationsExcludeTheExactStartOfNextMonth() throws {
+        let calendar = makeCalendar()
+        let referenceDate = try makeDate(year: 2026, month: 8, day: 15, calendar: calendar)
+        let category = CurrentLedgerCategory(
+            name: "餐饮",
+            type: .expense,
+            symbolName: "fork.knife",
+            sortOrder: 0,
+            isSystem: true
+        )
+        let augustTransaction = transaction(
+            amount: 1_000,
+            date: try makeDate(year: 2026, month: 8, day: 31, calendar: calendar),
+            categoryID: category.id
+        )
+        let septemberTransaction = transaction(
+            amount: 9_000,
+            date: try makeDate(year: 2026, month: 9, day: 1, calendar: calendar),
+            categoryID: category.id
+        )
+        let transactions = [augustTransaction, septemberTransaction]
+
+        let slices = ReportService.expenseCategorySlices(
+            for: transactions,
+            categories: [category],
+            inMonthContaining: referenceDate,
+            calendar: calendar
+        )
+        let points = ReportService.dailyExpensePoints(
+            for: transactions,
+            inMonthContaining: referenceDate,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(slices.map(\.amountInCents), [1_000])
+        XCTAssertEqual(points.map(\.amountInCents).reduce(0, +), 1_000)
+    }
+
+    func testNearestDailyExpensePointSnapsToClosestDateIncludingZeroDays() throws {
+        let calendar = makeCalendar()
+        let points = [
+            DailyExpensePoint(
+                date: try makeDate(year: 2026, month: 8, day: 21, calendar: calendar),
+                amountInCents: 1_200
+            ),
+            DailyExpensePoint(
+                date: try makeDate(year: 2026, month: 8, day: 22, calendar: calendar),
+                amountInCents: 0
+            ),
+            DailyExpensePoint(
+                date: try makeDate(year: 2026, month: 8, day: 23, calendar: calendar),
+                amountInCents: 3_400
+            )
+        ]
+        let dateNearZeroDay = try XCTUnwrap(
+            calendar.date(
+                byAdding: .hour,
+                value: 3,
+                to: points[1].date
+            )
+        )
+
+        let selected = ReportService.nearestDailyExpensePoint(
+            to: dateNearZeroDay,
+            in: points
+        )
+
+        XCTAssertEqual(selected, points[1])
+        XCTAssertEqual(selected?.amountInCents, 0)
+        XCTAssertNil(ReportService.nearestDailyExpensePoint(to: dateNearZeroDay, in: []))
+    }
+
     func testMonthlySnapshotKeepsSummarySlicesAndDailyPointsConsistent() throws {
         let calendar = makeCalendar()
         let referenceDate = try makeDate(year: 2026, month: 8, day: 22, calendar: calendar)
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             name: "餐饮",
             type: .expense,
             symbolName: "fork.knife",
@@ -274,7 +346,7 @@ final class ReportServiceTests: XCTestCase {
                 date: try makeDate(year: 2026, month: 8, day: 2, calendar: calendar),
                 categoryID: category.id
             ),
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .income,
                 amountInCents: 5_000,
                 date: referenceDate,
@@ -298,7 +370,7 @@ final class ReportServiceTests: XCTestCase {
     func testDeletedAndRecreatedSameNameCategoriesRemainSeparateSlices() throws {
         let calendar = makeCalendar()
         let referenceDate = try makeDate(year: 2026, month: 8, day: 22, calendar: calendar)
-        let deletedCategory = LedgerCategory(
+        let deletedCategory = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -307,7 +379,7 @@ final class ReportServiceTests: XCTestCase {
             isSystem: false,
             isSoftDeleted: true
         )
-        let recreatedCategory = LedgerCategory(
+        let recreatedCategory = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -349,8 +421,8 @@ final class ReportServiceTests: XCTestCase {
         date: Date,
         categoryID: UUID,
         subcategoryID: UUID? = nil
-    ) -> LedgerTransaction {
-        LedgerTransaction(
+    ) -> CurrentLedgerTransaction {
+        CurrentLedgerTransaction(
             type: .expense,
             amountInCents: amount,
             date: date,

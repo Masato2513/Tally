@@ -6,6 +6,57 @@
 import Charts
 import SwiftData
 import SwiftUI
+import UIKit
+
+/// 只接管明确的横向拖动；纵向意图会让识别器失败并交还给外层 ScrollView。
+private struct HorizontalChartPanGesture: UIGestureRecognizerRepresentable {
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onChanged: (CGPoint) -> Void
+
+        init(onChanged: @escaping (CGPoint) -> Void) {
+            self.onChanged = onChanged
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let panGesture = gestureRecognizer as? UIPanGestureRecognizer else {
+                return false
+            }
+            let velocity = panGesture.velocity(in: panGesture.view)
+            return abs(velocity.x) > abs(velocity.y)
+        }
+    }
+
+    let onChanged: (CGPoint) -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator(onChanged: onChanged)
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let gesture = UIPanGestureRecognizer()
+        gesture.delegate = context.coordinator
+        gesture.maximumNumberOfTouches = 1
+        gesture.cancelsTouchesInView = false
+        return gesture
+    }
+
+    func updateUIGestureRecognizer(
+        _ recognizer: UIPanGestureRecognizer,
+        context: Context
+    ) {
+        context.coordinator.onChanged = onChanged
+    }
+
+    func handleUIGestureRecognizerAction(
+        _ recognizer: UIPanGestureRecognizer,
+        context: Context
+    ) {
+        guard recognizer.state == .began || recognizer.state == .changed else {
+            return
+        }
+        context.coordinator.onChanged(recognizer.location(in: recognizer.view))
+    }
+}
 
 struct ReportsView: View {
     private enum ReportMode: String, CaseIterable, Identifiable {
@@ -29,18 +80,21 @@ struct ReportsView: View {
         }
     }
 
-    @Query(sort: \LedgerCategory.sortOrder)
-    private var categories: [LedgerCategory]
+    @Query(sort: \CurrentLedgerCategory.sortOrder)
+    private var categories: [CurrentLedgerCategory]
 
     @State private var mode: ReportMode = .report
     @State private var selectedMonth = Date.now
     @State private var categoryDetailPresentation: CategoryDetailPresentation?
     @State private var isPresentingMonthPicker = false
+    @State private var selectedTrendDate: Date?
+    @State private var dailyTrendChartFrame = CGRect.null
 
     private let calendar = Calendar.autoupdatingCurrent
+    private static let reportContentCoordinateSpace = "reportContent"
 
     private func makeRenderContext(
-        transactions: [LedgerTransaction]
+        transactions: [CurrentLedgerTransaction]
     ) -> RenderContext {
         let snapshot = ReportService.monthlySnapshot(
             for: transactions,
@@ -67,23 +121,16 @@ struct ReportsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("报表视图", selection: $mode) {
-                ForEach(ReportMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-
+        Group {
             switch mode {
             case .report:
                 TransactionQueryView(interval: selectedMonthInterval) { transactions in
                     reportContent(transactions: transactions)
                 }
             case .calendar:
-                CalendarReportView(selectedMonth: $selectedMonth)
+                CalendarReportView(selectedMonth: $selectedMonth) {
+                    reportModePicker
+                }
             }
         }
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
@@ -99,13 +146,23 @@ struct ReportsView: View {
                 selectedMonth = month
             }
         }
+        .onChange(of: selectedMonth) {
+            selectedTrendDate = nil
+        }
+        .onChange(of: mode) {
+            if mode != .report {
+                selectedTrendDate = nil
+            }
+        }
     }
 
-    private func reportContent(transactions: [LedgerTransaction]) -> some View {
+    private func reportContent(transactions: [CurrentLedgerTransaction]) -> some View {
         let context = makeRenderContext(transactions: transactions)
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                reportModePicker
+
                 monthSummary(context.snapshot.summary)
                     .insetGroupedModule()
 
@@ -118,6 +175,26 @@ struct ReportsView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
+        .coordinateSpace(name: Self.reportContentCoordinateSpace)
+        .simultaneousGesture(
+            SpatialTapGesture().onEnded { value in
+                guard selectedTrendDate != nil,
+                      !dailyTrendChartFrame.contains(value.location)
+                else {
+                    return
+                }
+                selectedTrendDate = nil
+            }
+        )
+    }
+
+    private var reportModePicker: some View {
+        Picker("报表视图", selection: $mode) {
+            ForEach(ReportMode.allCases) { mode in
+                Text(mode.rawValue).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
     }
 
     private func monthSummary(_ summary: MonthlyLedgerSummary) -> some View {
@@ -279,28 +356,32 @@ struct ReportsView: View {
     }
 
     private func dailyTrendSection(_ context: RenderContext) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let points = context.snapshot.dailyExpensePoints
+        let selectedPoint = selectedTrendDate.flatMap { selectedDate in
+            ReportService.nearestDailyExpensePoint(to: selectedDate, in: points)
+        }
+        let axisDates = points.indices.compactMap { index in
+            index.isMultiple(of: 7) ? points[index].date : nil
+        }
+        let highestAmount = points.map(\.amountInYuan).max() ?? 0
+        let yUpperBound = max(highestAmount * 1.12, 1)
+
+        return VStack(alignment: .leading, spacing: 16) {
             Text("每日支出趋势")
                 .font(.title2.bold())
 
-            if context.snapshot.summary.expenseInCents == 0 {
-                ContentUnavailableView(
-                    "暂无趋势数据",
-                    systemImage: "chart.xyaxis.line",
-                    description: Text("本月支出会按自然日显示在这里。")
-                )
-                .frame(maxWidth: .infinity)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.vertical, 24)
-            } else {
-                Chart(context.snapshot.dailyExpensePoints) { point in
+            Chart {
+                ForEach(points) { point in
                     AreaMark(
                         x: .value("日期", point.date, unit: .day),
                         y: .value("支出", point.amountInYuan)
                     )
                     .foregroundStyle(
                         .linearGradient(
-                            colors: [Color.accentColor.opacity(0.22), Color.accentColor.opacity(0.02)],
+                            colors: [
+                                Color.accentColor.opacity(0.22),
+                                Color.accentColor.opacity(0.02)
+                            ],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -311,48 +392,147 @@ struct ReportsView: View {
                         y: .value("支出", point.amountInYuan)
                     )
                     .foregroundStyle(Color.accentColor)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-
-                    if point.amountInCents > 0 {
-                        PointMark(
-                            x: .value("日期", point.date, unit: .day),
-                            y: .value("支出", point.amountInYuan)
+                    .lineStyle(
+                        StrokeStyle(
+                            lineWidth: 2,
+                            lineCap: .round,
+                            lineJoin: .round
                         )
-                        .foregroundStyle(Color.accentColor)
-                        .symbolSize(20)
-                    }
+                    )
                 }
-                .chartXAxis {
-                    AxisMarks(values: .stride(by: .day, count: 7)) { value in
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.day())
-                    }
+
+                if let selectedPoint {
+                    RuleMark(
+                        x: .value("选中日期", selectedPoint.date, unit: .day)
+                    )
+                    .foregroundStyle(Color.secondary.opacity(0.55))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+
+                    PointMark(
+                        x: .value("选中日期", selectedPoint.date, unit: .day),
+                        y: .value("当日支出", selectedPoint.amountInYuan)
+                    )
+                    .foregroundStyle(Color.accentColor)
+                    .symbolSize(64)
                 }
-                .chartYAxis {
-                    AxisMarks(position: .leading) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let amount = value.as(Double.self) {
-                                Text(
-                                    amount,
-                                    format: .currency(code: "CNY")
-                                        .precision(.fractionLength(0))
-                                )
-                            }
+            }
+            .chartXAxis {
+                AxisMarks(values: axisDates) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            Text("\(calendar.component(.day, from: date))日")
                         }
                     }
                 }
-                .frame(height: 220)
-                .accessibilityLabel("本月每日支出趋势")
-                .accessibilityValue(
-                    trendAccessibilitySummary(for: context.snapshot.dailyExpensePoints)
-                )
-
-                Text(trendAccessibilitySummary(for: context.snapshot.dailyExpensePoints))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
+            .chartYAxis {
+                AxisMarks(position: .leading) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let amount = value.as(Double.self) {
+                            Text(
+                                amount,
+                                format: .currency(code: "CNY")
+                                    .precision(.fractionLength(0))
+                            )
+                        }
+                    }
+                }
+            }
+            .chartYScale(domain: 0...yUpperBound)
+            .chartOverlay { proxy in
+                GeometryReader { geometry in
+                    Color.clear
+                        .contentShape(.rect)
+                        .gesture(
+                            HorizontalChartPanGesture { location in
+                                updateTrendSelection(
+                                    at: location,
+                                    proxy: proxy,
+                                    geometry: geometry,
+                                    points: points
+                                )
+                            }
+                        )
+                        .simultaneousGesture(
+                            SpatialTapGesture().onEnded { value in
+                                updateTrendSelection(
+                                    at: value.location,
+                                    proxy: proxy,
+                                    geometry: geometry,
+                                    points: points
+                                )
+                            }
+                        )
+                }
+            }
+            .chartOverlay(alignment: .top) { _ in
+                if let selectedPoint {
+                    Text(trendSelectionText(for: selectedPoint))
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.thinMaterial, in: Capsule())
+                        .padding(.top, 6)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(height: 220)
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .named(Self.reportContentCoordinateSpace))
+            } action: { newFrame in
+                dailyTrendChartFrame = newFrame
+            }
+            .sensoryFeedback(
+                .selection,
+                trigger: selectedTrendDate,
+                condition: { oldValue, newValue in
+                    oldValue != nil && newValue != nil && oldValue != newValue
+                }
+            )
+            .accessibilityLabel("本月每日支出趋势")
+            .accessibilityValue(
+                selectedPoint.map(trendSelectionText(for:))
+                    ?? trendAccessibilitySummary(for: points)
+            )
+
+            Text(trendAccessibilitySummary(for: points))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
+    }
+
+    private func updateTrendSelection(
+        at location: CGPoint,
+        proxy: ChartProxy,
+        geometry: GeometryProxy,
+        points: [DailyExpensePoint]
+    ) {
+        guard let plotFrameAnchor = proxy.plotFrame else { return }
+        let plotFrame = geometry[plotFrameAnchor]
+        guard plotFrame.contains(location) else { return }
+
+        let plotX = location.x - plotFrame.minX
+        guard let candidateDate: Date = proxy.value(atX: plotX) else { return }
+        let snappedDate = ReportService.nearestDailyExpensePoint(
+            to: candidateDate,
+            in: points
+        )?.date
+        guard snappedDate != selectedTrendDate else { return }
+        selectedTrendDate = snappedDate
+    }
+
+    private func trendSelectionText(for point: DailyExpensePoint) -> String {
+        let date = point.date.formatted(
+            Date.FormatStyle()
+                .month(.wide)
+                .day()
+                .locale(Locale(identifier: "zh_CN"))
+        )
+        return "\(date) \(MoneyAmount.formatted(cents: point.amountInCents))"
     }
 
     private func summaryItem(title: String, cents: Int64) -> some View {
@@ -427,7 +607,7 @@ struct ReportsView: View {
         ReportsView()
     }
     .modelContainer(
-        for: [LedgerTransaction.self, LedgerCategory.self, LedgerSubcategory.self],
+        for: [CurrentLedgerTransaction.self, CurrentLedgerCategory.self, CurrentLedgerSubcategory.self],
         inMemory: true
     )
 }

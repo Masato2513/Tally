@@ -9,10 +9,10 @@ import SwiftData
 @MainActor
 enum DefaultCategorySeeder {
     static func seedIfNeeded(in context: ModelContext) throws {
-        let existingCategories = try context.fetch(FetchDescriptor<LedgerCategory>())
-        let existingSubcategories = try context.fetch(FetchDescriptor<LedgerSubcategory>())
+        let existingCategories = try context.fetch(FetchDescriptor<CurrentLedgerCategory>())
+        let existingSubcategories = try context.fetch(FetchDescriptor<CurrentLedgerSubcategory>())
 
-        var categoriesBySystemKey: [String: LedgerCategory] = [:]
+        var categoriesBySystemKey: [String: CurrentLedgerCategory] = [:]
         for category in existingCategories {
             if let systemKey = category.systemKey, categoriesBySystemKey[systemKey] == nil {
                 categoriesBySystemKey[systemKey] = category
@@ -23,11 +23,11 @@ enum DefaultCategorySeeder {
         let now = Date.now
 
         for (categoryIndex, definition) in definitions.enumerated() {
-            let category: LedgerCategory
+            let category: CurrentLedgerCategory
             if let existingCategory = categoriesBySystemKey[definition.systemKey] {
                 category = existingCategory
             } else {
-                category = LedgerCategory(
+                category = CurrentLedgerCategory(
                     systemKey: definition.systemKey,
                     name: definition.name,
                     type: definition.type,
@@ -46,7 +46,7 @@ enum DefaultCategorySeeder {
                     continue
                 }
 
-                let subcategory = LedgerSubcategory(
+                let subcategory = CurrentLedgerSubcategory(
                     systemKey: subcategoryDefinition.systemKey,
                     name: subcategoryDefinition.name,
                     categoryID: category.id,

@@ -20,7 +20,7 @@ struct CalendarMonthSnapshot: Equatable {
 
 enum CalendarReportService {
     static func monthSnapshot(
-        for transactions: [LedgerTransaction],
+        for transactions: [CurrentLedgerTransaction],
         inMonthContaining date: Date,
         calendar: Calendar = .autoupdatingCurrent
     ) -> CalendarMonthSnapshot {
@@ -32,12 +32,12 @@ enum CalendarReportService {
         return CalendarMonthSnapshot(
             daySummaries: summaries,
             maximumDailyExpenseInCents: summaries.map(\.expenseInCents).max() ?? 0,
-            monthlyExpenseInCents: safeSum(summaries.map(\.expenseInCents))
+            monthlyExpenseInCents: MoneyArithmetic.sum(summaries.map(\.expenseInCents))
         )
     }
 
     static func daySummaries(
-        for transactions: [LedgerTransaction],
+        for transactions: [CurrentLedgerTransaction],
         inMonthContaining date: Date,
         calendar: Calendar = .autoupdatingCurrent
     ) -> [CalendarDaySummary] {
@@ -53,7 +53,7 @@ enum CalendarReportService {
         let amountsByDay = Dictionary(grouping: monthlyExpenses) {
             calendar.startOfDay(for: $0.date)
         }
-        .mapValues { safeSum($0.map(\.amountInCents)) }
+        .mapValues { MoneyArithmetic.sum($0.map(\.amountInCents)) }
 
         var summaries: [CalendarDaySummary] = []
         var currentDate = monthInterval.start
@@ -72,9 +72,9 @@ enum CalendarReportService {
 
     static func transactions(
         onDayContaining date: Date,
-        from transactions: [LedgerTransaction],
+        from transactions: [CurrentLedgerTransaction],
         calendar: Calendar = .autoupdatingCurrent
-    ) -> [LedgerTransaction] {
+    ) -> [CurrentLedgerTransaction] {
         guard let interval = CalendarIntervals.day(containing: date, calendar: calendar) else {
             return []
         }
@@ -124,14 +124,5 @@ enum CalendarReportService {
         dayComponents.minute = time.minute
         dayComponents.second = time.second
         return calendar.date(from: dayComponents) ?? calendar.startOfDay(for: day)
-    }
-}
-
-private extension CalendarReportService {
-    static func safeSum<S: Sequence>(_ values: S) -> Int64 where S.Element == Int64 {
-        values.reduce(into: 0) { result, value in
-            let (sum, overflow) = result.addingReportingOverflow(value)
-            result = overflow ? Int64.max : sum
-        }
     }
 }

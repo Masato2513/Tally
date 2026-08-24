@@ -13,22 +13,28 @@ final class StatisticsServiceTests: XCTestCase {
         let referenceDate = try makeDate(year: 2026, month: 8, day: 21, calendar: calendar)
         let categoryID = UUID()
         let transactions = [
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .expense,
                 amountInCents: 2_800,
                 date: try makeDate(year: 2026, month: 8, day: 1, calendar: calendar),
                 categoryID: categoryID
             ),
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .income,
                 amountInCents: 1_200_000,
                 date: try makeDate(year: 2026, month: 8, day: 20, calendar: calendar),
                 categoryID: categoryID
             ),
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .expense,
                 amountInCents: 9_900,
                 date: try makeDate(year: 2026, month: 7, day: 31, calendar: calendar),
+                categoryID: categoryID
+            ),
+            CurrentLedgerTransaction(
+                type: .expense,
+                amountInCents: 8_800,
+                date: try makeDate(year: 2026, month: 9, day: 1, calendar: calendar),
                 categoryID: categoryID
             )
         ]
@@ -64,7 +70,7 @@ final class StatisticsServiceTests: XCTestCase {
             try makeDate(year: 2026, month: 8, day: 22, calendar: calendar)
         ]
         let transactions = (includedDates + excludedDates).map {
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .expense,
                 amountInCents: 100,
                 date: $0,
@@ -85,19 +91,19 @@ final class StatisticsServiceTests: XCTestCase {
     func testExpenseTotalExcludesIncome() {
         let categoryID = UUID()
         let transactions = [
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .expense,
                 amountInCents: 500,
                 date: .now,
                 categoryID: categoryID
             ),
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .income,
                 amountInCents: 10_000,
                 date: .now,
                 categoryID: categoryID
             ),
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .expense,
                 amountInCents: 700,
                 date: .now,

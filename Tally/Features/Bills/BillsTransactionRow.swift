@@ -25,9 +25,9 @@ struct BillsTransactionDisplay: Equatable {
     let amountText: String
 
     init(
-        transaction: LedgerTransaction,
-        category: LedgerCategory?,
-        subcategory: LedgerSubcategory?,
+        transaction: CurrentLedgerTransaction,
+        category: CurrentLedgerCategory?,
+        subcategory: CurrentLedgerSubcategory?,
         showsDate: Bool
     ) {
         let names = [category?.name, subcategory?.name].compactMap { $0 }
@@ -59,9 +59,9 @@ struct BillsTransactionDisplay: Equatable {
         .locale(Locale(identifier: "zh_CN"))
 
     static func cached(
-        transaction: LedgerTransaction,
-        category: LedgerCategory?,
-        subcategory: LedgerSubcategory?,
+        transaction: CurrentLedgerTransaction,
+        category: CurrentLedgerCategory?,
+        subcategory: CurrentLedgerSubcategory?,
         showsDate: Bool
     ) -> BillsTransactionDisplay {
         let key = CacheKey(

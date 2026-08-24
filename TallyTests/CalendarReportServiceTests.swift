@@ -200,8 +200,8 @@ final class CalendarReportServiceTests: XCTestCase {
         amount: Int64,
         date: Date,
         categoryID: UUID
-    ) -> LedgerTransaction {
-        LedgerTransaction(
+    ) -> CurrentLedgerTransaction {
+        CurrentLedgerTransaction(
             type: type,
             amountInCents: amount,
             date: date,

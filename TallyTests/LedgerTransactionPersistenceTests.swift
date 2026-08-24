@@ -14,8 +14,8 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
         let context = ModelContext(container)
         try DefaultCategorySeeder.seedIfNeeded(in: context)
 
-        let categories = try context.fetch(FetchDescriptor<LedgerCategory>())
-        let subcategories = try context.fetch(FetchDescriptor<LedgerSubcategory>())
+        let categories = try context.fetch(FetchDescriptor<CurrentLedgerCategory>())
+        let subcategories = try context.fetch(FetchDescriptor<CurrentLedgerSubcategory>())
         let foodCategory = try XCTUnwrap(categories.first { $0.systemKey == "expense.food" })
         let mealSubcategory = try XCTUnwrap(
             subcategories.first { $0.systemKey == "expense.food.meals" }
@@ -23,7 +23,7 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
         let transactionDate = Date(timeIntervalSince1970: 1_787_299_200)
 
         context.insert(
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .expense,
                 amountInCents: 2_835,
                 date: transactionDate,
@@ -34,7 +34,7 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
         )
         try context.save()
 
-        let transactions = try context.fetch(FetchDescriptor<LedgerTransaction>())
+        let transactions = try context.fetch(FetchDescriptor<CurrentLedgerTransaction>())
         let transaction = try XCTUnwrap(transactions.first)
 
         XCTAssertEqual(transactions.count, 1)
@@ -52,7 +52,7 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
         let categoryID = UUID()
 
         context.insert(
-            LedgerTransaction(
+            CurrentLedgerTransaction(
                 type: .income,
                 amountInCents: 1_200_000,
                 date: .now,
@@ -62,7 +62,7 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
         try context.save()
 
         let transaction = try XCTUnwrap(
-            try context.fetch(FetchDescriptor<LedgerTransaction>()).first
+            try context.fetch(FetchDescriptor<CurrentLedgerTransaction>()).first
         )
 
         XCTAssertEqual(transaction.type, .income)
@@ -77,7 +77,7 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
         let originalCategoryID = UUID()
         let updatedCategoryID = UUID()
         let updatedDate = Date(timeIntervalSince1970: 1_787_385_600)
-        let transaction = LedgerTransaction(
+        let transaction = CurrentLedgerTransaction(
             type: .expense,
             amountInCents: 800,
             date: .now,
@@ -96,7 +96,7 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
         try context.save()
 
         let saved = try XCTUnwrap(
-            try context.fetch(FetchDescriptor<LedgerTransaction>()).first
+            try context.fetch(FetchDescriptor<CurrentLedgerTransaction>()).first
         )
         XCTAssertEqual(saved.type, .income)
         XCTAssertEqual(saved.amountInCents, 12_345)
@@ -109,7 +109,7 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
     func testPersistsTransactionDeletion() throws {
         let container = try makeContainer()
         let context = ModelContext(container)
-        let transaction = LedgerTransaction(
+        let transaction = CurrentLedgerTransaction(
             type: .expense,
             amountInCents: 2_800,
             date: .now,
@@ -121,15 +121,15 @@ final class LedgerTransactionPersistenceTests: XCTestCase {
         context.delete(transaction)
         try context.save()
 
-        let savedTransactions = try context.fetch(FetchDescriptor<LedgerTransaction>())
+        let savedTransactions = try context.fetch(FetchDescriptor<CurrentLedgerTransaction>())
         XCTAssertTrue(savedTransactions.isEmpty)
     }
 
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([
-            LedgerTransaction.self,
-            LedgerCategory.self,
-            LedgerSubcategory.self
+            CurrentLedgerTransaction.self,
+            CurrentLedgerCategory.self,
+            CurrentLedgerSubcategory.self
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, configurations: [configuration])

@@ -9,16 +9,16 @@ import SwiftUI
 struct SubcategoryEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var subcategories: [LedgerSubcategory]
+    @Query private var subcategories: [CurrentLedgerSubcategory]
 
-    let category: LedgerCategory
-    let subcategory: LedgerSubcategory?
+    let category: CurrentLedgerCategory
+    let subcategory: CurrentLedgerSubcategory?
 
     @State private var name: String
     @State private var errorMessage: String?
     @FocusState private var isNameFocused: Bool
 
-    init(category: LedgerCategory, subcategory: LedgerSubcategory? = nil) {
+    init(category: CurrentLedgerCategory, subcategory: CurrentLedgerSubcategory? = nil) {
         self.category = category
         self.subcategory = subcategory
         _name = State(initialValue: subcategory?.name ?? "")

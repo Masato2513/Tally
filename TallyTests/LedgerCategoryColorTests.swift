@@ -33,7 +33,7 @@ final class LedgerCategoryColorTests: XCTestCase {
     }
 
     func testCustomCategoryUsesPersistedColorAndDefaultsToBlue() {
-        let custom = LedgerCategory(
+        let custom = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -41,7 +41,7 @@ final class LedgerCategoryColorTests: XCTestCase {
             sortOrder: 0,
             isSystem: false
         )
-        let defaultColor = LedgerCategory(
+        let defaultColor = CurrentLedgerCategory(
             name: "其他",
             type: .expense,
             symbolName: "star",

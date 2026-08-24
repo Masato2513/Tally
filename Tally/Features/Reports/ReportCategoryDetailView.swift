@@ -9,7 +9,7 @@ import SwiftUI
 struct ReportCategoryDetailView: View {
     private struct DayGroup: Identifiable {
         let date: Date
-        let transactions: [LedgerTransaction]
+        let transactions: [CurrentLedgerTransaction]
 
         var id: Date { date }
     }
@@ -24,17 +24,17 @@ struct ReportCategoryDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \LedgerCategory.sortOrder)
-    private var categories: [LedgerCategory]
-    @Query(sort: \LedgerSubcategory.sortOrder)
-    private var subcategories: [LedgerSubcategory]
+    @Query(sort: \CurrentLedgerCategory.sortOrder)
+    private var categories: [CurrentLedgerCategory]
+    @Query(sort: \CurrentLedgerSubcategory.sortOrder)
+    private var subcategories: [CurrentLedgerSubcategory]
 
     let slice: ExpenseCategorySlice
     let selectedMonth: Date
 
     @State private var selectedDetent: PresentationDetent = .medium
-    @State private var editingTransaction: LedgerTransaction?
-    @State private var pendingDeleteTransaction: LedgerTransaction?
+    @State private var editingTransaction: CurrentLedgerTransaction?
+    @State private var pendingDeleteTransaction: CurrentLedgerTransaction?
     @State private var isShowingDeleteConfirmation = false
     @State private var isShowingDeleteError = false
 
@@ -54,7 +54,7 @@ struct ReportCategoryDetailView: View {
     }
 
     private func contentSnapshot(
-        for transactions: [LedgerTransaction]
+        for transactions: [CurrentLedgerTransaction]
     ) -> ContentSnapshot {
         let categoryIDs = Set(slice.categoryIDs)
         let categoryTransactions = transactions
@@ -94,7 +94,7 @@ struct ReportCategoryDetailView: View {
         )
     }
 
-    private func content(transactions: [LedgerTransaction]) -> some View {
+    private func content(transactions: [CurrentLedgerTransaction]) -> some View {
         let snapshot = contentSnapshot(for: transactions)
 
         return NavigationStack {
@@ -263,7 +263,7 @@ struct ReportCategoryDetailView: View {
     }
 
     private func transactionRow(
-        _ transaction: LedgerTransaction,
+        _ transaction: CurrentLedgerTransaction,
         categoryLookup: LedgerCategoryLookup
     ) -> some View {
         let display = categoryLookup.display(for: transaction, showsDate: false)

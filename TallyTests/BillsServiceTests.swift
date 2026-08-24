@@ -26,10 +26,15 @@ final class BillsServiceTests: XCTestCase {
             date: try makeDate(year: 2026, month: 8, day: 20, calendar: calendar),
             categoryID: categoryID
         )
+        let septemberTransaction = transaction(
+            amount: 8_800,
+            date: try makeDate(year: 2026, month: 9, day: 1, calendar: calendar),
+            categoryID: categoryID
+        )
 
         let result = BillsService.transactions(
             inMonthContaining: augustNewer.date,
-            from: [julyTransaction, augustOlder, augustNewer],
+            from: [julyTransaction, augustOlder, augustNewer, septemberTransaction],
             sortedBy: .time,
             calendar: calendar
         )
@@ -73,8 +78,8 @@ final class BillsServiceTests: XCTestCase {
         amount: Int64,
         date: Date,
         categoryID: UUID
-    ) -> LedgerTransaction {
-        LedgerTransaction(
+    ) -> CurrentLedgerTransaction {
+        CurrentLedgerTransaction(
             type: .expense,
             amountInCents: amount,
             date: date,

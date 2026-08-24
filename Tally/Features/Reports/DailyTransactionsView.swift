@@ -8,29 +8,29 @@ import SwiftUI
 
 struct DailyTransactionsView: View {
     private struct ContentSnapshot {
-        let transactions: [LedgerTransaction]
+        let transactions: [CurrentLedgerTransaction]
         let expenseInCents: Int64
         let categoryLookup: LedgerCategoryLookup
     }
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \LedgerCategory.sortOrder)
-    private var categories: [LedgerCategory]
-    @Query(sort: \LedgerSubcategory.sortOrder)
-    private var subcategories: [LedgerSubcategory]
+    @Query(sort: \CurrentLedgerCategory.sortOrder)
+    private var categories: [CurrentLedgerCategory]
+    @Query(sort: \CurrentLedgerSubcategory.sortOrder)
+    private var subcategories: [CurrentLedgerSubcategory]
 
     let date: Date
 
     @State private var isPresentingNewRecord = false
-    @State private var editingTransaction: LedgerTransaction?
-    @State private var pendingDeleteTransaction: LedgerTransaction?
+    @State private var editingTransaction: CurrentLedgerTransaction?
+    @State private var pendingDeleteTransaction: CurrentLedgerTransaction?
     @State private var isShowingDeleteConfirmation = false
     @State private var isShowingDeleteError = false
 
     private let calendar = Calendar.autoupdatingCurrent
 
-    private func contentSnapshot(for transactions: [LedgerTransaction]) -> ContentSnapshot {
+    private func contentSnapshot(for transactions: [CurrentLedgerTransaction]) -> ContentSnapshot {
         let dayTransactions = CalendarReportService.transactions(
             onDayContaining: date,
             from: transactions,
@@ -61,7 +61,7 @@ struct DailyTransactionsView: View {
         }
     }
 
-    private func content(transactions: [LedgerTransaction]) -> some View {
+    private func content(transactions: [CurrentLedgerTransaction]) -> some View {
         let snapshot = contentSnapshot(for: transactions)
 
         return NavigationStack {
@@ -146,7 +146,7 @@ struct DailyTransactionsView: View {
     }
 
     private func transactionRow(
-        _ transaction: LedgerTransaction,
+        _ transaction: CurrentLedgerTransaction,
         categoryLookup: LedgerCategoryLookup
     ) -> some View {
         let display = categoryLookup.display(for: transaction, showsDate: false)

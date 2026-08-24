@@ -12,7 +12,7 @@ final class CategoryManagementServiceTests: XCTestCase {
     func testCreatesTrimmedUserCategoryAfterExistingOrder() throws {
         let (container, context) = try makeContext()
         _ = container
-        let existing = LedgerCategory(
+        let existing = CurrentLedgerCategory(
             name: "餐饮",
             type: .expense,
             symbolName: "fork.knife",
@@ -35,13 +35,13 @@ final class CategoryManagementServiceTests: XCTestCase {
         XCTAssertFalse(created.isSystem)
         XCTAssertNil(created.systemKey)
         XCTAssertEqual(created.colorRawValue, LedgerCategoryColor.blue.rawValue)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<LedgerCategory>()).count, 2)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<CurrentLedgerCategory>()).count, 2)
     }
 
     func testRejectsDuplicateNamesWithinTheSameLevelOnly() throws {
         let (container, context) = try makeContext()
         _ = container
-        let expense = LedgerCategory(
+        let expense = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -77,7 +77,7 @@ final class CategoryManagementServiceTests: XCTestCase {
     func testSystemCategoryCannotBeEditedButUserCategoryCan() throws {
         let (container, context) = try makeContext()
         _ = container
-        let system = LedgerCategory(
+        let system = CurrentLedgerCategory(
             systemKey: "expense.food",
             name: "餐饮",
             type: .expense,
@@ -85,7 +85,7 @@ final class CategoryManagementServiceTests: XCTestCase {
             sortOrder: 0,
             isSystem: true
         )
-        let user = LedgerCategory(
+        let user = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -126,7 +126,7 @@ final class CategoryManagementServiceTests: XCTestCase {
     func testCreatesEditsHidesAndOrdersUserSubcategories() throws {
         let (container, context) = try makeContext()
         _ = container
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -173,21 +173,21 @@ final class CategoryManagementServiceTests: XCTestCase {
     func testHidingAndReorderingCategoryPreservesHistoricalTransaction() throws {
         let (container, context) = try makeContext()
         _ = container
-        let food = LedgerCategory(
+        let food = CurrentLedgerCategory(
             name: "餐饮",
             type: .expense,
             symbolName: "fork.knife",
             sortOrder: 0,
             isSystem: true
         )
-        let shopping = LedgerCategory(
+        let shopping = CurrentLedgerCategory(
             name: "购物",
             type: .expense,
             symbolName: "bag",
             sortOrder: 1,
             isSystem: true
         )
-        let transaction = LedgerTransaction(
+        let transaction = CurrentLedgerTransaction(
             type: .expense,
             amountInCents: 2_800,
             date: .now,
@@ -201,7 +201,7 @@ final class CategoryManagementServiceTests: XCTestCase {
         try CategoryManagementService.setCategoryHidden(food, hidden: true, in: context)
         try CategoryManagementService.applyCategoryOrder([shopping, food], in: context)
 
-        let persistedTransactions = try context.fetch(FetchDescriptor<LedgerTransaction>())
+        let persistedTransactions = try context.fetch(FetchDescriptor<CurrentLedgerTransaction>())
         XCTAssertTrue(food.isHidden)
         XCTAssertEqual(shopping.sortOrder, 0)
         XCTAssertEqual(food.sortOrder, 1)
@@ -211,7 +211,7 @@ final class CategoryManagementServiceTests: XCTestCase {
     func testSoftDeletingUserCategoryKeepsModelsAndHistoricalTransaction() throws {
         let (container, context) = try makeContext()
         _ = container
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -219,13 +219,13 @@ final class CategoryManagementServiceTests: XCTestCase {
             sortOrder: 0,
             isSystem: false
         )
-        let subcategory = LedgerSubcategory(
+        let subcategory = CurrentLedgerSubcategory(
             name: "用品",
             categoryID: category.id,
             sortOrder: 0,
             isSystem: false
         )
-        let transaction = LedgerTransaction(
+        let transaction = CurrentLedgerTransaction(
             type: .expense,
             amountInCents: 2_800,
             date: .now,
@@ -243,9 +243,9 @@ final class CategoryManagementServiceTests: XCTestCase {
             in: context
         )
 
-        let persistedCategories = try context.fetch(FetchDescriptor<LedgerCategory>())
-        let persistedSubcategories = try context.fetch(FetchDescriptor<LedgerSubcategory>())
-        let persistedTransactions = try context.fetch(FetchDescriptor<LedgerTransaction>())
+        let persistedCategories = try context.fetch(FetchDescriptor<CurrentLedgerCategory>())
+        let persistedSubcategories = try context.fetch(FetchDescriptor<CurrentLedgerSubcategory>())
+        let persistedTransactions = try context.fetch(FetchDescriptor<CurrentLedgerTransaction>())
         XCTAssertEqual(persistedCategories.count, 1)
         XCTAssertEqual(persistedSubcategories.count, 1)
         XCTAssertEqual(persistedTransactions.count, 1)
@@ -272,7 +272,7 @@ final class CategoryManagementServiceTests: XCTestCase {
     func testSystemCategoryAndSubcategoryCannotBeSoftDeleted() throws {
         let (container, context) = try makeContext()
         _ = container
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             systemKey: "expense.food",
             name: "餐饮",
             type: .expense,
@@ -280,7 +280,7 @@ final class CategoryManagementServiceTests: XCTestCase {
             sortOrder: 0,
             isSystem: true
         )
-        let subcategory = LedgerSubcategory(
+        let subcategory = CurrentLedgerSubcategory(
             systemKey: "expense.food.meals",
             name: "三餐",
             categoryID: category.id,
@@ -315,7 +315,7 @@ final class CategoryManagementServiceTests: XCTestCase {
     func testSoftDeletingUserSubcategoryKeepsHistoricalDisplayAndParent() throws {
         let (container, context) = try makeContext()
         _ = container
-        let category = LedgerCategory(
+        let category = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -323,13 +323,13 @@ final class CategoryManagementServiceTests: XCTestCase {
             sortOrder: 0,
             isSystem: false
         )
-        let subcategory = LedgerSubcategory(
+        let subcategory = CurrentLedgerSubcategory(
             name: "医疗",
             categoryID: category.id,
             sortOrder: 0,
             isSystem: false
         )
-        let transaction = LedgerTransaction(
+        let transaction = CurrentLedgerTransaction(
             type: .expense,
             amountInCents: 1_200,
             date: .now,
@@ -359,7 +359,7 @@ final class CategoryManagementServiceTests: XCTestCase {
     func testRecreatingDeletedNamesUsesNewIndependentIDs() throws {
         let (container, context) = try makeContext()
         _ = container
-        let deletedCategory = LedgerCategory(
+        let deletedCategory = CurrentLedgerCategory(
             name: "宠物",
             type: .expense,
             symbolName: "pawprint",
@@ -379,7 +379,7 @@ final class CategoryManagementServiceTests: XCTestCase {
             among: [deletedCategory],
             in: context
         )
-        let deletedSubcategory = LedgerSubcategory(
+        let deletedSubcategory = CurrentLedgerSubcategory(
             name: "用品",
             categoryID: newCategory.id,
             sortOrder: 0,
@@ -403,9 +403,9 @@ final class CategoryManagementServiceTests: XCTestCase {
 
     private func makeContext() throws -> (ModelContainer, ModelContext) {
         let schema = Schema([
-            LedgerTransaction.self,
-            LedgerCategory.self,
-            LedgerSubcategory.self
+            CurrentLedgerTransaction.self,
+            CurrentLedgerCategory.self,
+            CurrentLedgerSubcategory.self
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [configuration])

@@ -7,19 +7,19 @@ import Foundation
 
 /// 单次页面更新共用的分类索引，避免为每一条账单重复构建字典。
 struct LedgerCategoryLookup {
-    private let categoriesByID: [UUID: LedgerCategory]
-    private let subcategoriesByID: [UUID: LedgerSubcategory]
+    private let categoriesByID: [UUID: CurrentLedgerCategory]
+    private let subcategoriesByID: [UUID: CurrentLedgerSubcategory]
 
     init(
-        categories: [LedgerCategory],
-        subcategories: [LedgerSubcategory]
+        categories: [CurrentLedgerCategory],
+        subcategories: [CurrentLedgerSubcategory]
     ) {
         categoriesByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
         subcategoriesByID = Dictionary(uniqueKeysWithValues: subcategories.map { ($0.id, $0) })
     }
 
     func display(
-        for transaction: LedgerTransaction,
+        for transaction: CurrentLedgerTransaction,
         showsDate: Bool
     ) -> BillsTransactionDisplay {
         let category = categoriesByID[transaction.categoryID]

@@ -48,3 +48,9 @@ extension LedgerTransaction {
     }
 }
 
+extension CurrentLedgerTransaction {
+    var type: LedgerTransactionType {
+        get { LedgerTransactionType(rawValue: typeRawValue) ?? .expense }
+        set { typeRawValue = newValue.rawValue }
+    }
+}

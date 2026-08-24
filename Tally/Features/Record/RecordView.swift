@@ -12,17 +12,12 @@ struct RecordView: View {
         case note
     }
 
-    private struct ValidatedCategorySelection {
-        let categoryID: UUID
-        let subcategoryID: UUID?
-    }
-
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \LedgerCategory.sortOrder) private var categories: [LedgerCategory]
-    @Query(sort: \LedgerSubcategory.sortOrder) private var subcategories: [LedgerSubcategory]
+    @Query(sort: \CurrentLedgerCategory.sortOrder) private var categories: [CurrentLedgerCategory]
+    @Query(sort: \CurrentLedgerSubcategory.sortOrder) private var subcategories: [CurrentLedgerSubcategory]
 
-    private let transaction: LedgerTransaction?
+    private let transaction: CurrentLedgerTransaction?
 
     @State private var transactionType: LedgerTransactionType
     @State private var selectedCategoryID: UUID?
@@ -36,7 +31,7 @@ struct RecordView: View {
     @FocusState private var focusedField: Field?
 
     init(
-        transaction: LedgerTransaction? = nil,
+        transaction: CurrentLedgerTransaction? = nil,
         initialDate: Date? = nil,
         initialCategoryID: UUID? = nil
     ) {
@@ -58,7 +53,7 @@ struct RecordView: View {
         _transactionDate = State(initialValue: date)
     }
 
-    private var selectableCategories: [LedgerCategory] {
+    private var selectableCategories: [CurrentLedgerCategory] {
         categories.filter {
             $0.type == transactionType
                 && !$0.isSoftDeleted
@@ -66,18 +61,18 @@ struct RecordView: View {
         }
     }
 
-    private var selectableSubcategories: [LedgerSubcategory] {
+    private var selectableSubcategories: [CurrentLedgerSubcategory] {
         subcategories.filter {
             !$0.isSoftDeleted && (!$0.isHidden || $0.id == selectedSubcategoryID)
         }
     }
 
-    private var historicalCategory: LedgerCategory? {
+    private var historicalCategory: CurrentLedgerCategory? {
         guard let transaction else { return nil }
         return categories.first { $0.id == transaction.categoryID }
     }
 
-    private var historicalSubcategory: LedgerSubcategory? {
+    private var historicalSubcategory: CurrentLedgerSubcategory? {
         guard let subcategoryID = transaction?.subcategoryID else { return nil }
         return subcategories.first { $0.id == subcategoryID }
     }
@@ -91,7 +86,13 @@ struct RecordView: View {
     }
 
     private var canSave: Bool {
-        amountInCents != nil && validatedCategorySelection != nil
+        guard let transactionInput else { return false }
+        return LedgerTransactionService.isValid(
+            transactionInput,
+            editing: transaction,
+            categories: categories,
+            subcategories: subcategories
+        )
     }
 
     private var isEditing: Bool {
@@ -219,70 +220,34 @@ struct RecordView: View {
     }
 
     private func save() {
-        guard let amountInCents, let selection = validatedCategorySelection else { return }
-
-        if let transaction {
-            transaction.type = transactionType
-            transaction.amountInCents = amountInCents
-            transaction.date = transactionDate
-            transaction.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
-            transaction.categoryID = selection.categoryID
-            transaction.subcategoryID = selection.subcategoryID
-            transaction.updatedAt = .now
-        } else {
-            let newTransaction = LedgerTransaction(
-                type: transactionType,
-                amountInCents: amountInCents,
-                date: transactionDate,
-                note: note.trimmingCharacters(in: .whitespacesAndNewlines),
-                categoryID: selection.categoryID,
-                subcategoryID: selection.subcategoryID
-            )
-            modelContext.insert(newTransaction)
-        }
+        guard let transactionInput else { return }
 
         do {
-            try modelContext.save()
+            try LedgerTransactionService.save(
+                transactionInput,
+                editing: transaction,
+                categories: categories,
+                subcategories: subcategories,
+                in: modelContext
+            )
             saveFeedbackTrigger += 1
             dismiss()
+        } catch let error as LedgerTransactionValidationError {
+            saveErrorMessage = error.localizedDescription
+            isShowingSaveError = true
         } catch {
-            modelContext.rollback()
             saveErrorMessage = "本地数据库写入失败，请稍后重试。"
             isShowingSaveError = true
         }
     }
 
-    private var validatedCategorySelection: ValidatedCategorySelection? {
-        guard let selectedCategoryID else { return nil }
-
-        if let transaction,
-           transaction.categoryID == selectedCategoryID,
-           transaction.subcategoryID == selectedSubcategoryID {
-            return ValidatedCategorySelection(
-                categoryID: selectedCategoryID,
-                subcategoryID: selectedSubcategoryID
-            )
-        }
-
-        guard categories.contains(where: {
-            $0.id == selectedCategoryID
-                && $0.type == transactionType
-                && !$0.isSoftDeleted
-        }) else {
-            return nil
-        }
-
-        if let selectedSubcategoryID {
-            guard subcategories.contains(where: {
-                $0.id == selectedSubcategoryID
-                    && $0.categoryID == selectedCategoryID
-                    && !$0.isSoftDeleted
-            }) else {
-                return nil
-            }
-        }
-
-        return ValidatedCategorySelection(
+    private var transactionInput: LedgerTransactionInput? {
+        guard let amountInCents, let selectedCategoryID else { return nil }
+        return LedgerTransactionInput(
+            type: transactionType,
+            amountInCents: amountInCents,
+            date: transactionDate,
+            note: note,
             categoryID: selectedCategoryID,
             subcategoryID: selectedSubcategoryID
         )

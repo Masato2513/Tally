@@ -13,11 +13,9 @@ final class LedgerCategory {
     var name: String
     var typeRawValue: String
     var symbolName: String
-    var colorRawValue: String = "blue"
     var sortOrder: Int
     var isSystem: Bool
     var isHidden: Bool
-    var isSoftDeleted: Bool = false
     var createdAt: Date
     var updatedAt: Date
 
@@ -27,11 +25,9 @@ final class LedgerCategory {
         name: String,
         type: LedgerTransactionType,
         symbolName: String,
-        color: LedgerCategoryColor = .blue,
         sortOrder: Int,
         isSystem: Bool,
         isHidden: Bool = false,
-        isSoftDeleted: Bool = false,
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
@@ -40,17 +36,22 @@ final class LedgerCategory {
         self.name = name
         self.typeRawValue = type.rawValue
         self.symbolName = symbolName
-        self.colorRawValue = color.rawValue
         self.sortOrder = sortOrder
         self.isSystem = isSystem
         self.isHidden = isHidden
-        self.isSoftDeleted = isSoftDeleted
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
 }
 
 extension LedgerCategory {
+    var type: LedgerTransactionType {
+        get { LedgerTransactionType(rawValue: typeRawValue) ?? .expense }
+        set { typeRawValue = newValue.rawValue }
+    }
+}
+
+extension CurrentLedgerCategory {
     var type: LedgerTransactionType {
         get { LedgerTransactionType(rawValue: typeRawValue) ?? .expense }
         set { typeRawValue = newValue.rawValue }

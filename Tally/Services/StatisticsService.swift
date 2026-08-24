@@ -10,13 +10,13 @@ struct MonthlyLedgerSummary: Equatable {
     let incomeInCents: Int64
 
     var balanceInCents: Int64 {
-        incomeInCents - expenseInCents
+        MoneyArithmetic.subtract(expenseInCents, from: incomeInCents)
     }
 }
 
 enum StatisticsService {
-    static func expenseTotal(for transactions: [LedgerTransaction]) -> Int64 {
-        safeSum(
+    static func expenseTotal(for transactions: [CurrentLedgerTransaction]) -> Int64 {
+        MoneyArithmetic.sum(
             transactions.lazy
                 .filter { $0.type == .expense }
                 .map(\.amountInCents)
@@ -24,7 +24,7 @@ enum StatisticsService {
     }
 
     static func monthlySummary(
-        for transactions: [LedgerTransaction],
+        for transactions: [CurrentLedgerTransaction],
         containing date: Date = .now,
         calendar: Calendar = .autoupdatingCurrent
     ) -> MonthlyLedgerSummary {
@@ -32,9 +32,9 @@ enum StatisticsService {
             return MonthlyLedgerSummary(expenseInCents: 0, incomeInCents: 0)
         }
 
-        let monthlyTransactions = transactions.filter { interval.contains($0.date) }
+        let monthlyTransactions = transactions.filter { interval.containsHalfOpen($0.date) }
         let expense = expenseTotal(for: monthlyTransactions)
-        let income = safeSum(
+        let income = MoneyArithmetic.sum(
             monthlyTransactions.lazy
                 .filter { $0.type == .income }
                 .map(\.amountInCents)
@@ -45,10 +45,10 @@ enum StatisticsService {
 
     static func transactionsWithinLastDays(
         _ dayCount: Int,
-        from transactions: [LedgerTransaction],
+        from transactions: [CurrentLedgerTransaction],
         relativeTo date: Date = .now,
         calendar: Calendar = .autoupdatingCurrent
-    ) -> [LedgerTransaction] {
+    ) -> [CurrentLedgerTransaction] {
         guard dayCount > 0 else { return [] }
 
         let startOfToday = calendar.startOfDay(for: date)
@@ -62,14 +62,5 @@ enum StatisticsService {
         return transactions
             .filter { $0.date >= startDate && $0.date < endDate }
             .sorted { $0.date > $1.date }
-    }
-}
-
-private extension StatisticsService {
-    static func safeSum<S: Sequence>(_ values: S) -> Int64 where S.Element == Int64 {
-        values.reduce(into: 0) { result, value in
-            let (sum, overflow) = result.addingReportingOverflow(value)
-            result = overflow ? Int64.max : sum
-        }
     }
 }
