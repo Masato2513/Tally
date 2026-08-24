@@ -19,11 +19,19 @@ enum LedgerCategoryColor: String, CaseIterable, Identifiable {
     case mint
     case green
     case brown
+    case coral
+    case amber
+    case lime
+    case sky
+    case violet
+    case magenta
     case gray
 
     static let selectableColors: [Self] = [
-        .blue, .cyan, .teal, .green, .mint, .orange,
-        .yellow, .red, .pink, .purple, .indigo, .brown
+        .blue, .sky, .cyan, .teal, .mint,
+        .green, .lime, .yellow, .amber, .orange,
+        .coral, .red, .pink, .magenta, .purple,
+        .violet, .indigo, .brown
     ]
 
     var id: Self { self }
@@ -60,6 +68,8 @@ enum LedgerCategoryColor: String, CaseIterable, Identifiable {
             .green
         case "expense.membershipCommunication":
             .brown
+        case "expense.repayment":
+            .yellow
         case "income.investment":
             .indigo
         case "income.other":
@@ -83,6 +93,12 @@ enum LedgerCategoryColor: String, CaseIterable, Identifiable {
         case .purple: "紫色"
         case .indigo: "靛蓝色"
         case .brown: "棕色"
+        case .coral: "珊瑚色"
+        case .amber: "琥珀色"
+        case .lime: "青柠色"
+        case .sky: "天蓝色"
+        case .violet: "紫罗兰色"
+        case .magenta: "洋红色"
         case .gray: "灰色"
         }
     }
@@ -113,6 +129,18 @@ enum LedgerCategoryColor: String, CaseIterable, Identifiable {
             Color(uiColor: .systemGreen)
         case .brown:
             Color(uiColor: .systemBrown)
+        case .coral:
+            Color("CategoryCoral")
+        case .amber:
+            Color("CategoryAmber")
+        case .lime:
+            Color("CategoryLime")
+        case .sky:
+            Color("CategorySky")
+        case .violet:
+            Color("CategoryViolet")
+        case .magenta:
+            Color("CategoryMagenta")
         case .gray:
             Color(uiColor: .systemGray)
         }

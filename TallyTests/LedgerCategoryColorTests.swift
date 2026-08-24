@@ -20,7 +20,8 @@ final class LedgerCategoryColorTests: XCTestCase {
             ("expense.entertainment", .red),
             ("expense.travel", .mint),
             ("expense.medical", .green),
-            ("expense.membershipCommunication", .brown)
+            ("expense.membershipCommunication", .brown),
+            ("expense.repayment", .yellow)
         ]
 
         for (systemKey, expectedColor) in expectedColors {
@@ -50,5 +51,18 @@ final class LedgerCategoryColorTests: XCTestCase {
 
         XCTAssertEqual(LedgerCategoryColor.resolve(for: custom), .pink)
         XCTAssertEqual(LedgerCategoryColor.resolve(for: defaultColor), .blue)
+    }
+
+    func testSelectableColorsContainSystemAndExtendedColors() {
+        XCTAssertEqual(
+            Set(LedgerCategoryColor.selectableColors),
+            Set([
+                .blue, .sky, .cyan, .teal, .mint,
+                .green, .lime, .yellow, .amber, .orange,
+                .coral, .red, .pink, .magenta, .purple,
+                .violet, .indigo, .brown
+            ])
+        )
+        XCTAssertEqual(LedgerCategoryColor.selectableColors.count, 18)
     }
 }

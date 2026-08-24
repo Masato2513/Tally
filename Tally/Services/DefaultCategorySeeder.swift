@@ -202,6 +202,19 @@ private extension DefaultCategorySeeder {
                 ("phoneBill", "话费")
             ]
         ),
+        expenseCategory(
+            key: "expense.repayment",
+            name: "还款",
+            symbol: "creditcard",
+            subcategories: [
+                ("creditCard", "信用卡"),
+                ("mortgage", "房贷"),
+                ("carLoan", "车贷"),
+                ("consumerInstallment", "消费分期"),
+                ("onlineLoan", "网络借贷"),
+                ("otherRepayment", "其他还款")
+            ]
+        ),
         incomeCategory(
             key: "income.career",
             name: "职业收入",
@@ -277,4 +290,3 @@ private extension DefaultCategorySeeder {
         )
     }
 }
-
