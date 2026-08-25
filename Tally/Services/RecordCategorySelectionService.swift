@@ -16,12 +16,13 @@ struct RecordCategoryOption: Identifiable, Equatable {
 }
 
 enum RecordCategorySelectionService {
-    static func defaultExpenseCategoryID(
+    static func defaultCategoryID(
+        for type: LedgerTransactionType,
         in categories: [CurrentLedgerCategory]
     ) -> UUID? {
         categories
             .filter {
-                $0.type == .expense
+                $0.type == type
                     && !$0.isHidden
                     && !$0.isSoftDeleted
             }
@@ -31,6 +32,12 @@ enum RecordCategorySelectionService {
                 }
                 return lhs.id.uuidString < rhs.id.uuidString
             }?.id
+    }
+
+    static func defaultExpenseCategoryID(
+        in categories: [CurrentLedgerCategory]
+    ) -> UUID? {
+        defaultCategoryID(for: .expense, in: categories)
     }
 
     static func options(

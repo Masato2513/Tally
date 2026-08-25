@@ -35,6 +35,8 @@ final class BillsTransactionDisplayTests: XCTestCase {
 
         XCTAssertEqual(display.categoryTitle, "购物 · 日常")
         XCTAssertEqual(display.secondaryText, "8月22日 · 朴朴")
+        XCTAssertEqual(display.amountText, "¥55.38")
+        XCTAssertEqual(display.transactionType, .expense)
         XCTAssertFalse(display.secondaryText?.contains("19") ?? true)
         XCTAssertFalse(display.secondaryText?.contains(":") ?? true)
     }
@@ -58,6 +60,26 @@ final class BillsTransactionDisplayTests: XCTestCase {
         XCTAssertEqual(display.secondaryText, "8月22日")
     }
 
+    func testAmountSortedSearchIncludesYearForEveryResultWhenNeeded() throws {
+        let category = makeCategory()
+        let transaction = CurrentLedgerTransaction(
+            type: .expense,
+            amountInCents: 4_520,
+            date: try makeDate(year: 2026, month: 8, day: 22, hour: 9, minute: 30),
+            categoryID: category.id
+        )
+
+        let display = BillsTransactionDisplay(
+            transaction: transaction,
+            category: category,
+            subcategory: nil,
+            showsDate: true,
+            showsYear: true
+        )
+
+        XCTAssertEqual(display.secondaryText, "2026年8月22日")
+    }
+
     func testGroupedListsOnlyUseTheNoteAsSecondaryText() throws {
         let category = makeCategory()
         let transaction = CurrentLedgerTransaction(
@@ -76,6 +98,33 @@ final class BillsTransactionDisplayTests: XCTestCase {
         )
 
         XCTAssertEqual(display.secondaryText, "日用品")
+    }
+
+    func testIncomeAmountDoesNotUseASignAndKeepsItsType() {
+        let category = CurrentLedgerCategory(
+            systemKey: "income.salary",
+            name: "工资",
+            type: .income,
+            symbolName: "banknote",
+            sortOrder: 0,
+            isSystem: true
+        )
+        let transaction = CurrentLedgerTransaction(
+            type: .income,
+            amountInCents: 10_000,
+            date: .now,
+            categoryID: category.id
+        )
+
+        let display = BillsTransactionDisplay(
+            transaction: transaction,
+            category: category,
+            subcategory: nil,
+            showsDate: false
+        )
+
+        XCTAssertEqual(display.amountText, "¥100.00")
+        XCTAssertEqual(display.transactionType, .income)
     }
 
     private func makeCategory() -> CurrentLedgerCategory {

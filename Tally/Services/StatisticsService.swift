@@ -14,11 +14,34 @@ struct MonthlyLedgerSummary: Equatable {
     }
 }
 
+struct LedgerTransactionTotals: Equatable {
+    let expenseInCents: Int64
+    let incomeInCents: Int64
+}
+
 enum StatisticsService {
     static func expenseTotal(for transactions: [CurrentLedgerTransaction]) -> Int64 {
+        total(for: .expense, in: transactions)
+    }
+
+    static func incomeTotal(for transactions: [CurrentLedgerTransaction]) -> Int64 {
+        total(for: .income, in: transactions)
+    }
+
+    static func totals(for transactions: [CurrentLedgerTransaction]) -> LedgerTransactionTotals {
+        LedgerTransactionTotals(
+            expenseInCents: expenseTotal(for: transactions),
+            incomeInCents: incomeTotal(for: transactions)
+        )
+    }
+
+    private static func total(
+        for type: LedgerTransactionType,
+        in transactions: [CurrentLedgerTransaction]
+    ) -> Int64 {
         MoneyArithmetic.sum(
             transactions.lazy
-                .filter { $0.type == .expense }
+                .filter { $0.type == type }
                 .map(\.amountInCents)
         )
     }
@@ -33,14 +56,12 @@ enum StatisticsService {
         }
 
         let monthlyTransactions = transactions.filter { interval.containsHalfOpen($0.date) }
-        let expense = expenseTotal(for: monthlyTransactions)
-        let income = MoneyArithmetic.sum(
-            monthlyTransactions.lazy
-                .filter { $0.type == .income }
-                .map(\.amountInCents)
-        )
+        let totals = totals(for: monthlyTransactions)
 
-        return MonthlyLedgerSummary(expenseInCents: expense, incomeInCents: income)
+        return MonthlyLedgerSummary(
+            expenseInCents: totals.expenseInCents,
+            incomeInCents: totals.incomeInCents
+        )
     }
 
     static func transactionsWithinLastDays(

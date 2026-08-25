@@ -79,8 +79,8 @@ final class CalendarReportServiceTests: XCTestCase {
         )
 
         XCTAssertEqual(summaries.count, 29)
-        XCTAssertEqual(summaries[1].expenseInCents, 2_000)
-        XCTAssertEqual(summaries.filter { $0.expenseInCents == 0 }.count, 28)
+        XCTAssertEqual(summaries[1].amountInCents, 2_000)
+        XCTAssertEqual(summaries.filter { $0.amountInCents == 0 }.count, 28)
     }
 
     func testMonthSnapshotDerivesTotalAndMaximumFromOneSetOfSummaries() throws {
@@ -115,8 +115,43 @@ final class CalendarReportServiceTests: XCTestCase {
         )
 
         XCTAssertEqual(snapshot.daySummaries.count, 31)
-        XCTAssertEqual(snapshot.monthlyExpenseInCents, 4_600)
-        XCTAssertEqual(snapshot.maximumDailyExpenseInCents, 3_400)
+        XCTAssertEqual(snapshot.monthlyAmountInCents, 4_600)
+        XCTAssertEqual(snapshot.maximumDailyAmountInCents, 3_400)
+    }
+
+    func testIncomeSnapshotAndDailyTransactionsExcludeExpenses() throws {
+        let calendar = makeCalendar()
+        let referenceDate = try makeDate(year: 2026, month: 8, day: 22, calendar: calendar)
+        let categoryID = UUID()
+        let income = transaction(
+            type: .income,
+            amount: 5_600,
+            date: referenceDate,
+            categoryID: categoryID
+        )
+        let expense = transaction(
+            type: .expense,
+            amount: 9_900,
+            date: referenceDate,
+            categoryID: categoryID
+        )
+
+        let snapshot = CalendarReportService.monthSnapshot(
+            for: [income, expense],
+            inMonthContaining: referenceDate,
+            transactionType: .income,
+            calendar: calendar
+        )
+        let dailyTransactions = CalendarReportService.transactions(
+            onDayContaining: referenceDate,
+            from: [expense, income],
+            transactionType: .income,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(snapshot.monthlyAmountInCents, 5_600)
+        XCTAssertEqual(snapshot.maximumDailyAmountInCents, 5_600)
+        XCTAssertEqual(dailyTransactions.map(\.id), [income.id])
     }
 
     func testTransactionsOnDayUseNaturalDayBoundariesAndNewestFirst() throws {

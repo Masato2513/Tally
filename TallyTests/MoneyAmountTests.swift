@@ -91,6 +91,15 @@ final class MoneyAmountTests: XCTestCase {
         XCTAssertNil(MoneyAmount.cents(from: "92233720368547759", locale: locale))
     }
 
+    func testFilterAmountParserAllowsZeroWithTheSameEditingRules() {
+        XCTAssertEqual(MoneyAmount.centsAllowingZero(from: "0"), 0)
+        XCTAssertEqual(MoneyAmount.centsAllowingZero(from: "0.00"), 0)
+        XCTAssertEqual(MoneyAmount.centsAllowingZero(from: "25.4"), 2_540)
+        XCTAssertNil(MoneyAmount.centsAllowingZero(from: "00"))
+        XCTAssertNil(MoneyAmount.centsAllowingZero(from: "1.234"))
+        XCTAssertNil(MoneyAmount.centsAllowingZero(from: "1.2.3"))
+    }
+
     func testCreatesEditableTextWithoutCurrencySymbolsOrRedundantZeros() {
         let chineseLocale = Locale(identifier: "zh_CN")
         let germanLocale = Locale(identifier: "de_DE")

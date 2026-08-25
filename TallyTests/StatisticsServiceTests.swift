@@ -114,6 +114,29 @@ final class StatisticsServiceTests: XCTestCase {
         XCTAssertEqual(StatisticsService.expenseTotal(for: transactions), 1_200)
     }
 
+    func testTransactionTotalsSeparateExpenseAndIncome() {
+        let categoryID = UUID()
+        let transactions = [
+            CurrentLedgerTransaction(
+                type: .expense,
+                amountInCents: 2_540,
+                date: .now,
+                categoryID: categoryID
+            ),
+            CurrentLedgerTransaction(
+                type: .income,
+                amountInCents: 10_000,
+                date: .now,
+                categoryID: categoryID
+            )
+        ]
+
+        let totals = StatisticsService.totals(for: transactions)
+
+        XCTAssertEqual(totals.expenseInCents, 2_540)
+        XCTAssertEqual(totals.incomeInCents, 10_000)
+    }
+
     private func makeCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "zh_CN")

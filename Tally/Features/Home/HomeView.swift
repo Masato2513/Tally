@@ -134,9 +134,7 @@ struct HomeView: View {
 
                             TransactionDaySectionHeader(
                                 date: group.date,
-                                expenseInCents: StatisticsService.expenseTotal(
-                                    for: group.transactions
-                                ),
+                                transactions: group.transactions,
                                 calendar: calendar
                             )
                         }
@@ -218,13 +216,7 @@ struct HomeView: View {
     ) -> some View {
         let display = categoryLookup.display(for: transaction, showsDate: false)
 
-        return BillsTransactionRow(
-            categoryTitle: display.categoryTitle,
-            symbolName: display.symbolName,
-            categoryColor: display.categoryColor,
-            secondaryText: display.secondaryText,
-            amountText: display.amountText
-        )
+        return BillsTransactionRow(display: display)
         .equatable()
         .onTapGesture {
             editingTransaction = transaction

@@ -51,6 +51,21 @@ final class TransactionDayTitleTests: XCTestCase {
         )
     }
 
+    func testEveryDateIncludesYearWhenSearchResultsCrossYears() throws {
+        let calendar = makeCalendar()
+        let referenceDate = try makeDate(year: 2026, month: 8, day: 22, calendar: calendar)
+
+        XCTAssertEqual(
+            TransactionDayTitle.text(
+                for: referenceDate,
+                relativeTo: referenceDate,
+                calendar: calendar,
+                includesYear: true
+            ),
+            "2026年8月22日 今天"
+        )
+    }
+
     private func makeCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "zh_CN")

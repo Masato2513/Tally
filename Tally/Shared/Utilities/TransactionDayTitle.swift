@@ -9,14 +9,26 @@ enum TransactionDayTitle {
     static func text(
         for date: Date,
         relativeTo referenceDate: Date = .now,
-        calendar: Calendar = .autoupdatingCurrent
+        calendar: Calendar = .autoupdatingCurrent,
+        includesYear: Bool = false
     ) -> String {
-        let dateText = date.formatted(
-            Date.FormatStyle()
-                .month(.wide)
-                .day()
-                .locale(Locale(identifier: "zh_CN"))
-        )
+        let dateText: String
+        if includesYear {
+            dateText = date.formatted(
+                Date.FormatStyle()
+                    .year()
+                    .month(.wide)
+                    .day()
+                    .locale(Locale(identifier: "zh_CN"))
+            )
+        } else {
+            dateText = date.formatted(
+                Date.FormatStyle()
+                    .month(.wide)
+                    .day()
+                    .locale(Locale(identifier: "zh_CN"))
+            )
+        }
 
         if calendar.isDate(date, inSameDayAs: referenceDate) {
             return "\(dateText) 今天"

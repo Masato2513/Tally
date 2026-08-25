@@ -108,6 +108,73 @@ final class RecordCategorySelectionServiceTests: XCTestCase {
         )
     }
 
+    func testDefaultIncomeCategoryUsesFirstAvailableCategoryAndSkipsUnavailableOnes() {
+        let hiddenSalary = CurrentLedgerCategory(
+            name: "工资",
+            type: .income,
+            symbolName: "banknote",
+            sortOrder: 0,
+            isSystem: true,
+            isHidden: true
+        )
+        let deletedBonus = CurrentLedgerCategory(
+            name: "奖金",
+            type: .income,
+            symbolName: "gift",
+            sortOrder: 1,
+            isSystem: false,
+            isSoftDeleted: true
+        )
+        let otherIncome = CurrentLedgerCategory(
+            name: "其他收益",
+            type: .income,
+            symbolName: "plus.circle",
+            sortOrder: 2,
+            isSystem: true
+        )
+        let expense = CurrentLedgerCategory(
+            name: "餐饮",
+            type: .expense,
+            symbolName: "fork.knife",
+            sortOrder: 0,
+            isSystem: true
+        )
+
+        XCTAssertEqual(
+            RecordCategorySelectionService.defaultCategoryID(
+                for: .income,
+                in: [expense, otherIncome, deletedBonus, hiddenSalary]
+            ),
+            otherIncome.id
+        )
+    }
+
+    func testDefaultIncomeCategoryIsNilWhenEveryIncomeCategoryIsUnavailable() {
+        let hiddenIncome = CurrentLedgerCategory(
+            name: "隐藏收入",
+            type: .income,
+            symbolName: "eye.slash",
+            sortOrder: 0,
+            isSystem: false,
+            isHidden: true
+        )
+        let deletedIncome = CurrentLedgerCategory(
+            name: "已删除收入",
+            type: .income,
+            symbolName: "trash",
+            sortOrder: 1,
+            isSystem: false,
+            isSoftDeleted: true
+        )
+
+        XCTAssertNil(
+            RecordCategorySelectionService.defaultCategoryID(
+                for: .income,
+                in: [hiddenIncome, deletedIncome]
+            )
+        )
+    }
+
     func testOptionsStartWithPrimaryAndThenUseSubcategoryOrder() {
         let category = CurrentLedgerCategory(
             name: "医疗",

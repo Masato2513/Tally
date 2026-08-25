@@ -367,6 +367,70 @@ final class ReportServiceTests: XCTestCase {
         XCTAssertEqual(snapshot.dailyExpensePoints[1].amountInCents, 2_000)
     }
 
+    func testIncomeSnapshotAndDetailsUseOnlyIncomeTransactions() throws {
+        let calendar = makeCalendar()
+        let referenceDate = try makeDate(year: 2026, month: 8, day: 22, calendar: calendar)
+        let salary = CurrentLedgerCategory(
+            name: "工资",
+            type: .income,
+            symbolName: "banknote",
+            sortOrder: 0,
+            isSystem: true
+        )
+        let baseSalary = CurrentLedgerSubcategory(
+            name: "基本工资",
+            categoryID: salary.id,
+            sortOrder: 0,
+            isSystem: true
+        )
+        let food = CurrentLedgerCategory(
+            name: "餐饮",
+            type: .expense,
+            symbolName: "fork.knife",
+            sortOrder: 0,
+            isSystem: true
+        )
+        let income = CurrentLedgerTransaction(
+            type: .income,
+            amountInCents: 50_000,
+            date: referenceDate,
+            categoryID: salary.id,
+            subcategoryID: baseSalary.id
+        )
+        let expense = CurrentLedgerTransaction(
+            type: .expense,
+            amountInCents: 12_000,
+            date: referenceDate,
+            categoryID: food.id
+        )
+
+        let snapshot = ReportService.monthlySnapshot(
+            for: [income, expense],
+            categories: [salary, food],
+            inMonthContaining: referenceDate,
+            transactionType: .income,
+            calendar: calendar
+        )
+        let slice = try XCTUnwrap(snapshot.categorySlices.first)
+        let details = ReportService.detailItems(
+            for: slice,
+            transactions: [income, expense],
+            categories: [salary, food],
+            subcategories: [baseSalary],
+            inMonthContaining: referenceDate,
+            transactionType: .income,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(snapshot.summary.expenseInCents, 12_000)
+        XCTAssertEqual(snapshot.summary.incomeInCents, 50_000)
+        XCTAssertEqual(snapshot.categorySlices.map(\.name), ["工资"])
+        XCTAssertEqual(snapshot.categorySlices.map(\.amountInCents), [50_000])
+        XCTAssertEqual(snapshot.dailyExpensePoints.reduce(0) { $0 + $1.amountInCents }, 50_000)
+        XCTAssertEqual(details.map(\.name), ["工资 · 基本工资"])
+        XCTAssertEqual(details.map(\.amountInCents), [50_000])
+    }
+
     func testDeletedAndRecreatedSameNameCategoriesRemainSeparateSlices() throws {
         let calendar = makeCalendar()
         let referenceDate = try makeDate(year: 2026, month: 8, day: 22, calendar: calendar)

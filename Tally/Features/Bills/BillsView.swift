@@ -78,7 +78,13 @@ struct BillsView: View {
         }
         .navigationTitle("账单")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                NavigationLink {
+                    TransactionSearchView()
+                } label: {
+                    Label("搜索账单", systemImage: "magnifyingglass")
+                }
+
                 Menu {
                     Picker("排序方式", selection: $sortOrder) {
                         ForEach(BillsSortOrder.allCases) { order in
@@ -194,7 +200,7 @@ struct BillsView: View {
             } header: {
                 TransactionDaySectionHeader(
                     date: group.date,
-                    expenseInCents: StatisticsService.expenseTotal(for: group.transactions),
+                    transactions: group.transactions,
                     calendar: calendar
                 )
             }
@@ -239,13 +245,7 @@ struct BillsView: View {
     ) -> some View {
         let display = categoryLookup.display(for: transaction, showsDate: showsDate)
 
-        return BillsTransactionRow(
-            categoryTitle: display.categoryTitle,
-            symbolName: display.symbolName,
-            categoryColor: display.categoryColor,
-            secondaryText: display.secondaryText,
-            amountText: display.amountText
-        )
+        return BillsTransactionRow(display: display)
         .equatable()
         .onTapGesture {
             editingTransaction = transaction

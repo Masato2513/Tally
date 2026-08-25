@@ -7,50 +7,53 @@ import Foundation
 
 struct CalendarDaySummary: Identifiable, Equatable {
     let date: Date
-    let expenseInCents: Int64
+    let amountInCents: Int64
 
     var id: Date { date }
 }
 
 struct CalendarMonthSnapshot: Equatable {
     let daySummaries: [CalendarDaySummary]
-    let maximumDailyExpenseInCents: Int64
-    let monthlyExpenseInCents: Int64
+    let maximumDailyAmountInCents: Int64
+    let monthlyAmountInCents: Int64
 }
 
 enum CalendarReportService {
     static func monthSnapshot(
         for transactions: [CurrentLedgerTransaction],
         inMonthContaining date: Date,
+        transactionType: LedgerTransactionType = .expense,
         calendar: Calendar = .autoupdatingCurrent
     ) -> CalendarMonthSnapshot {
         let summaries = daySummaries(
             for: transactions,
             inMonthContaining: date,
+            transactionType: transactionType,
             calendar: calendar
         )
         return CalendarMonthSnapshot(
             daySummaries: summaries,
-            maximumDailyExpenseInCents: summaries.map(\.expenseInCents).max() ?? 0,
-            monthlyExpenseInCents: MoneyArithmetic.sum(summaries.map(\.expenseInCents))
+            maximumDailyAmountInCents: summaries.map(\.amountInCents).max() ?? 0,
+            monthlyAmountInCents: MoneyArithmetic.sum(summaries.map(\.amountInCents))
         )
     }
 
     static func daySummaries(
         for transactions: [CurrentLedgerTransaction],
         inMonthContaining date: Date,
+        transactionType: LedgerTransactionType = .expense,
         calendar: Calendar = .autoupdatingCurrent
     ) -> [CalendarDaySummary] {
         guard let monthInterval = CalendarIntervals.month(containing: date, calendar: calendar) else {
             return []
         }
 
-        let monthlyExpenses = transactions.filter {
-            $0.type == .expense
+        let monthlyTransactions = transactions.filter {
+            $0.type == transactionType
                 && $0.date >= monthInterval.start
                 && $0.date < monthInterval.end
         }
-        let amountsByDay = Dictionary(grouping: monthlyExpenses) {
+        let amountsByDay = Dictionary(grouping: monthlyTransactions) {
             calendar.startOfDay(for: $0.date)
         }
         .mapValues { MoneyArithmetic.sum($0.map(\.amountInCents)) }
@@ -60,7 +63,7 @@ enum CalendarReportService {
         while currentDate < monthInterval.end {
             let day = calendar.startOfDay(for: currentDate)
             summaries.append(
-                CalendarDaySummary(date: day, expenseInCents: amountsByDay[day] ?? 0)
+                CalendarDaySummary(date: day, amountInCents: amountsByDay[day] ?? 0)
             )
             guard let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) else {
                 break
@@ -73,13 +76,18 @@ enum CalendarReportService {
     static func transactions(
         onDayContaining date: Date,
         from transactions: [CurrentLedgerTransaction],
+        transactionType: LedgerTransactionType = .expense,
         calendar: Calendar = .autoupdatingCurrent
     ) -> [CurrentLedgerTransaction] {
         guard let interval = CalendarIntervals.day(containing: date, calendar: calendar) else {
             return []
         }
         return transactions
-            .filter { $0.date >= interval.start && $0.date < interval.end }
+            .filter {
+                $0.type == transactionType
+                    && $0.date >= interval.start
+                    && $0.date < interval.end
+            }
             .sorted { lhs, rhs in
                 if lhs.date != rhs.date {
                     return lhs.date > rhs.date

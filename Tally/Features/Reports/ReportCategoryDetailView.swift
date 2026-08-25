@@ -15,8 +15,8 @@ struct ReportCategoryDetailView: View {
     }
 
     private struct ContentSnapshot {
-        let monthlyExpenseInCents: Int64
-        let categoryExpenseInCents: Int64
+        let monthlyTotalInCents: Int64
+        let categoryTotalInCents: Int64
         let details: [ReportDetailItem]
         let dayGroups: [DayGroup]
         let categoryLookup: LedgerCategoryLookup
@@ -31,6 +31,7 @@ struct ReportCategoryDetailView: View {
 
     let slice: ExpenseCategorySlice
     let selectedMonth: Date
+    let transactionType: LedgerTransactionType
 
     @State private var selectedDetent: PresentationDetent = .medium
     @State private var editingTransaction: CurrentLedgerTransaction?
@@ -59,7 +60,7 @@ struct ReportCategoryDetailView: View {
         let categoryIDs = Set(slice.categoryIDs)
         let categoryTransactions = transactions
             .filter {
-                $0.type == .expense && categoryIDs.contains($0.categoryID)
+                $0.type == transactionType && categoryIDs.contains($0.categoryID)
             }
             .sorted { $0.date > $1.date }
         let grouped = Dictionary(grouping: categoryTransactions) {
@@ -69,14 +70,23 @@ struct ReportCategoryDetailView: View {
             .map { DayGroup(date: $0.key, transactions: $0.value) }
             .sorted { $0.date > $1.date }
 
+        let monthlySummary = StatisticsService.monthlySummary(
+            for: transactions,
+            containing: selectedMonth,
+            calendar: calendar
+        )
+        let monthlyTotalInCents: Int64
+        switch transactionType {
+        case .expense:
+            monthlyTotalInCents = monthlySummary.expenseInCents
+        case .income:
+            monthlyTotalInCents = monthlySummary.incomeInCents
+        }
+
         return ContentSnapshot(
-            monthlyExpenseInCents: StatisticsService.monthlySummary(
-                for: transactions,
-                containing: selectedMonth,
-                calendar: calendar
-            ).expenseInCents,
-            categoryExpenseInCents: StatisticsService.expenseTotal(
-                for: categoryTransactions
+            monthlyTotalInCents: monthlyTotalInCents,
+            categoryTotalInCents: MoneyArithmetic.sum(
+                categoryTransactions.map(\.amountInCents)
             ),
             details: ReportService.detailItems(
                 for: slice,
@@ -84,6 +94,7 @@ struct ReportCategoryDetailView: View {
                 categories: categories,
                 subcategories: subcategories,
                 inMonthContaining: selectedMonth,
+                transactionType: transactionType,
                 calendar: calendar
             ),
             dayGroups: dayGroups,
@@ -101,8 +112,8 @@ struct ReportCategoryDetailView: View {
             List {
                 Section {
                     summaryContent(
-                        categoryExpenseInCents: snapshot.categoryExpenseInCents,
-                        monthlyExpenseInCents: snapshot.monthlyExpenseInCents
+                        categoryTotalInCents: snapshot.categoryTotalInCents,
+                        monthlyTotalInCents: snapshot.monthlyTotalInCents
                     )
                 }
 
@@ -111,7 +122,9 @@ struct ReportCategoryDetailView: View {
                         ContentUnavailableView(
                             "暂无构成数据",
                             systemImage: "list.bullet",
-                            description: Text("当前分类在本月没有可展示的支出。")
+                            description: Text(
+                                "当前分类在本月没有可展示的\(transactionType.title)。"
+                            )
                         )
                         .frame(maxWidth: .infinity)
                         .fixedSize(horizontal: false, vertical: true)
@@ -121,7 +134,7 @@ struct ReportCategoryDetailView: View {
                         ForEach(snapshot.details) { item in
                             detailRow(
                                 item,
-                                categoryExpenseInCents: snapshot.categoryExpenseInCents
+                                categoryTotalInCents: snapshot.categoryTotalInCents
                             )
                         }
                     }
@@ -165,22 +178,22 @@ struct ReportCategoryDetailView: View {
     }
 
     private func summaryContent(
-        categoryExpenseInCents: Int64,
-        monthlyExpenseInCents: Int64
+        categoryTotalInCents: Int64,
+        monthlyTotalInCents: Int64
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(monthTitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Text(MoneyAmount.formatted(cents: categoryExpenseInCents))
+            Text(MoneyAmount.formatted(cents: categoryTotalInCents))
                 .font(.largeTitle.bold())
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
             Text(
-                "占本月支出 \(percentageText(categoryExpenseInCents, of: monthlyExpenseInCents))"
+                "占本月\(transactionType.title) \(percentageText(categoryTotalInCents, of: monthlyTotalInCents))"
             )
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -193,9 +206,9 @@ struct ReportCategoryDetailView: View {
 
     private func detailRow(
         _ item: ReportDetailItem,
-        categoryExpenseInCents: Int64
+        categoryTotalInCents: Int64
     ) -> some View {
-        let ratio = ratio(item.amountInCents, of: categoryExpenseInCents)
+        let ratio = ratio(item.amountInCents, of: categoryTotalInCents)
 
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -252,9 +265,7 @@ struct ReportCategoryDetailView: View {
 
                     TransactionDaySectionHeader(
                         date: group.date,
-                        expenseInCents: StatisticsService.expenseTotal(
-                            for: group.transactions
-                        ),
+                        transactions: group.transactions,
                         calendar: calendar
                     )
                 }
@@ -268,13 +279,7 @@ struct ReportCategoryDetailView: View {
     ) -> some View {
         let display = categoryLookup.display(for: transaction, showsDate: false)
 
-        return BillsTransactionRow(
-            categoryTitle: display.categoryTitle,
-            symbolName: display.symbolName,
-            categoryColor: display.categoryColor,
-            secondaryText: display.secondaryText,
-            amountText: display.amountText
-        )
+        return BillsTransactionRow(display: display)
         .equatable()
         .onTapGesture {
             editingTransaction = transaction

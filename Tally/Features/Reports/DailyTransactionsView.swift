@@ -9,7 +9,7 @@ import SwiftUI
 struct DailyTransactionsView: View {
     private struct ContentSnapshot {
         let transactions: [CurrentLedgerTransaction]
-        let expenseInCents: Int64
+        let totalInCents: Int64
         let categoryLookup: LedgerCategoryLookup
     }
 
@@ -21,6 +21,7 @@ struct DailyTransactionsView: View {
     private var subcategories: [CurrentLedgerSubcategory]
 
     let date: Date
+    let transactionType: LedgerTransactionType
 
     @State private var isPresentingNewRecord = false
     @State private var editingTransaction: CurrentLedgerTransaction?
@@ -34,11 +35,12 @@ struct DailyTransactionsView: View {
         let dayTransactions = CalendarReportService.transactions(
             onDayContaining: date,
             from: transactions,
+            transactionType: transactionType,
             calendar: calendar
         )
         return ContentSnapshot(
             transactions: dayTransactions,
-            expenseInCents: StatisticsService.expenseTotal(for: dayTransactions),
+            totalInCents: MoneyArithmetic.sum(dayTransactions.map(\.amountInCents)),
             categoryLookup: LedgerCategoryLookup(
                 categories: categories,
                 subcategories: subcategories
@@ -46,8 +48,11 @@ struct DailyTransactionsView: View {
         )
     }
 
-    private var defaultExpenseCategoryID: UUID? {
-        RecordCategorySelectionService.defaultExpenseCategoryID(in: categories)
+    private var defaultCategoryID: UUID? {
+        RecordCategorySelectionService.defaultCategoryID(
+            for: transactionType,
+            in: categories
+        )
     }
 
     private var selectedDayInterval: DateInterval {
@@ -68,10 +73,10 @@ struct DailyTransactionsView: View {
             List {
                 Section {
                     HStack {
-                        Text("当日支出")
+                        Text("当日\(transactionType.title)")
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(MoneyAmount.formatted(cents: snapshot.expenseInCents))
+                        Text(MoneyAmount.formatted(cents: snapshot.totalInCents))
                             .font(.headline)
                             .monospacedDigit()
                             .contentTransition(.numericText())
@@ -82,7 +87,7 @@ struct DailyTransactionsView: View {
                 if snapshot.transactions.isEmpty {
                     Section {
                         ContentUnavailableView(
-                            "当天暂无账单",
+                            "当天暂无\(transactionType.title)账单",
                             systemImage: "calendar.badge.minus",
                             description: Text("可以直接为这一天记录一笔。")
                         )
@@ -122,7 +127,8 @@ struct DailyTransactionsView: View {
                         on: date,
                         calendar: calendar
                     ),
-                    initialCategoryID: defaultExpenseCategoryID
+                    initialCategoryID: defaultCategoryID,
+                    initialTransactionType: transactionType
                 )
             }
             .sheet(item: $editingTransaction) { transaction in
@@ -151,13 +157,7 @@ struct DailyTransactionsView: View {
     ) -> some View {
         let display = categoryLookup.display(for: transaction, showsDate: false)
 
-        return BillsTransactionRow(
-            categoryTitle: display.categoryTitle,
-            symbolName: display.symbolName,
-            categoryColor: display.categoryColor,
-            secondaryText: display.secondaryText,
-            amountText: display.amountText
-        )
+        return BillsTransactionRow(display: display)
         .equatable()
         .onTapGesture {
             editingTransaction = transaction

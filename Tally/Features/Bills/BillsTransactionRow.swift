@@ -13,6 +13,7 @@ struct BillsTransactionDisplay: Equatable {
         let categoryUpdatedAt: Date?
         let subcategoryUpdatedAt: Date?
         let showsDate: Bool
+        let showsYear: Bool
     }
 
     private static var cache: [CacheKey: BillsTransactionDisplay] = [:]
@@ -23,18 +24,27 @@ struct BillsTransactionDisplay: Equatable {
     let categoryColor: LedgerCategoryColor
     let secondaryText: String?
     let amountText: String
+    let transactionType: LedgerTransactionType
 
     init(
         transaction: CurrentLedgerTransaction,
         category: CurrentLedgerCategory?,
         subcategory: CurrentLedgerSubcategory?,
-        showsDate: Bool
+        showsDate: Bool,
+        showsYear: Bool = false
     ) {
         let names = [category?.name, subcategory?.name].compactMap { $0 }
         categoryTitle = names.isEmpty ? "未分类" : names.joined(separator: " · ")
         symbolName = category?.symbolName ?? "questionmark.circle"
         categoryColor = LedgerCategoryColor.resolve(for: category)
-        let dateText = showsDate ? transaction.date.formatted(Self.dateStyle) : nil
+        let dateText: String?
+        if showsDate {
+            dateText = transaction.date.formatted(
+                showsYear ? Self.dateStyleWithYear : Self.dateStyle
+            )
+        } else {
+            dateText = nil
+        }
         let noteText = transaction.note.isEmpty ? nil : transaction.note
         secondaryText = switch (dateText, noteText) {
         case let (.some(date), .some(note)):
@@ -47,13 +57,17 @@ struct BillsTransactionDisplay: Equatable {
             nil
         }
 
-        let signedAmount = transaction.type == .expense
-            ? -transaction.amountInCents
-            : transaction.amountInCents
-        amountText = MoneyAmount.formatted(cents: signedAmount)
+        amountText = MoneyAmount.formatted(cents: transaction.amountInCents)
+        transactionType = transaction.type
     }
 
     private static let dateStyle = Date.FormatStyle()
+        .month(.wide)
+        .day()
+        .locale(Locale(identifier: "zh_CN"))
+
+    private static let dateStyleWithYear = Date.FormatStyle()
+        .year()
         .month(.wide)
         .day()
         .locale(Locale(identifier: "zh_CN"))
@@ -62,14 +76,16 @@ struct BillsTransactionDisplay: Equatable {
         transaction: CurrentLedgerTransaction,
         category: CurrentLedgerCategory?,
         subcategory: CurrentLedgerSubcategory?,
-        showsDate: Bool
+        showsDate: Bool,
+        showsYear: Bool = false
     ) -> BillsTransactionDisplay {
         let key = CacheKey(
             transactionID: transaction.id,
             transactionUpdatedAt: transaction.updatedAt,
             categoryUpdatedAt: category?.updatedAt,
             subcategoryUpdatedAt: subcategory?.updatedAt,
-            showsDate: showsDate
+            showsDate: showsDate,
+            showsYear: showsYear
         )
         if let cachedDisplay = cache[key] {
             return cachedDisplay
@@ -82,7 +98,8 @@ struct BillsTransactionDisplay: Equatable {
             transaction: transaction,
             category: category,
             subcategory: subcategory,
-            showsDate: showsDate
+            showsDate: showsDate,
+            showsYear: showsYear
         )
         cache[key] = display
         return display
@@ -90,28 +107,24 @@ struct BillsTransactionDisplay: Equatable {
 }
 
 struct BillsTransactionRow: View, Equatable {
-    let categoryTitle: String
-    let symbolName: String
-    let categoryColor: LedgerCategoryColor
-    let secondaryText: String?
-    let amountText: String
+    let display: BillsTransactionDisplay
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: symbolName)
+            Image(systemName: display.symbolName)
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(categoryColor.color)
+                .foregroundStyle(display.categoryColor.color)
                 .font(.body)
                 .frame(width: 20)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(categoryTitle)
+                Text(display.categoryTitle)
                     .font(.body)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                if let secondaryText {
+                if let secondaryText = display.secondaryText {
                     Text(secondaryText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -122,15 +135,22 @@ struct BillsTransactionRow: View, Equatable {
 
             Spacer(minLength: 12)
 
-            Text(amountText)
+            Text(display.amountText)
                 .font(.body.weight(.medium))
-                .foregroundStyle(.primary)
+                .foregroundStyle(amountColor)
                 .monospacedDigit()
+                .accessibilityLabel(
+                    "\(display.transactionType.title)，\(display.amountText)"
+                )
         }
         .frame(minHeight: 44)
         .padding(.vertical, 3)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
         .accessibilityHint("轻点编辑这笔账单")
+    }
+
+    private var amountColor: Color {
+        LedgerTransactionStyle.amountColor(for: display.transactionType)
     }
 }

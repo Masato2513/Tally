@@ -20,7 +20,8 @@ struct LedgerCategoryLookup {
 
     func display(
         for transaction: CurrentLedgerTransaction,
-        showsDate: Bool
+        showsDate: Bool,
+        showsYear: Bool = false
     ) -> BillsTransactionDisplay {
         let category = categoriesByID[transaction.categoryID]
         let subcategory = transaction.subcategoryID.flatMap { subcategoriesByID[$0] }
@@ -28,7 +29,8 @@ struct LedgerCategoryLookup {
             transaction: transaction,
             category: category,
             subcategory: subcategory,
-            showsDate: showsDate
+            showsDate: showsDate,
+            showsYear: showsYear
         )
     }
 }

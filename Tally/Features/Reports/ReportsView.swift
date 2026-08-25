@@ -94,9 +94,10 @@ struct ReportsView: View {
     private struct CategoryDetailPresentation: Identifiable {
         let slice: ExpenseCategorySlice
         let month: Date
+        let transactionType: LedgerTransactionType
 
         var id: String {
-            "\(slice.id):\(month.timeIntervalSinceReferenceDate)"
+            "\(transactionType.rawValue):\(slice.id):\(month.timeIntervalSinceReferenceDate)"
         }
     }
 
@@ -104,6 +105,7 @@ struct ReportsView: View {
     private var categories: [CurrentLedgerCategory]
 
     @State private var mode: ReportMode = .report
+    @State private var selectedTransactionType: LedgerTransactionType = .expense
     @State private var selectedMonth = Date.now
     @State private var categoryDetailPresentation: CategoryDetailPresentation?
     @State private var isPresentingMonthPicker = false
@@ -120,6 +122,7 @@ struct ReportsView: View {
             for: transactions,
             categories: categories,
             inMonthContaining: selectedMonth,
+            transactionType: selectedTransactionType,
             calendar: calendar
         )
         return RenderContext(
@@ -148,17 +151,26 @@ struct ReportsView: View {
                     reportContent(transactions: transactions)
                 }
             case .calendar:
-                CalendarReportView(selectedMonth: $selectedMonth) {
+                CalendarReportView(
+                    selectedMonth: $selectedMonth,
+                    transactionType: selectedTransactionType
+                ) {
                     reportModePicker
                 }
             }
         }
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(mode.rawValue)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                transactionTypeMenu
+            }
+        }
         .sheet(item: $categoryDetailPresentation) { presentation in
             ReportCategoryDetailView(
                 slice: presentation.slice,
-                selectedMonth: presentation.month
+                selectedMonth: presentation.month,
+                transactionType: presentation.transactionType
             )
         }
         .sheet(isPresented: $isPresentingMonthPicker) {
@@ -174,6 +186,9 @@ struct ReportsView: View {
                 selectedTrendDate = nil
             }
         }
+        .onChange(of: selectedTransactionType) {
+            selectedTrendDate = nil
+        }
     }
 
     private func reportContent(transactions: [CurrentLedgerTransaction]) -> some View {
@@ -186,7 +201,7 @@ struct ReportsView: View {
                 monthSummary(context.snapshot.summary)
                     .insetGroupedModule()
 
-                expenseCategorySection(context)
+                categorySection(context)
                     .insetGroupedModule()
 
                 dailyTrendSection(context)
@@ -217,6 +232,26 @@ struct ReportsView: View {
         .pickerStyle(.segmented)
     }
 
+    private var transactionTypeMenu: some View {
+        Menu {
+            ForEach(LedgerTransactionType.allCases, id: \.self) { type in
+                Button {
+                    selectedTransactionType = type
+                } label: {
+                    if selectedTransactionType == type {
+                        Label(type.title, systemImage: "checkmark")
+                    } else {
+                        Text(type.title)
+                    }
+                }
+            }
+        } label: {
+            Text(selectedTransactionType.title)
+        }
+        .accessibilityLabel("统计类型，当前(selectedTransactionType.title)")
+        .accessibilityHint("选择查看支出或收入统计")
+    }
+
     private func monthSummary(_ summary: MonthlyLedgerSummary) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Button {
@@ -241,16 +276,18 @@ struct ReportsView: View {
         }
     }
 
-    private func expenseCategorySection(_ context: RenderContext) -> some View {
+    private func categorySection(_ context: RenderContext) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("支出分类")
+            Text("\(selectedTransactionType.title)分类")
                 .font(.title2.bold())
 
             if context.snapshot.categorySlices.isEmpty {
                 ContentUnavailableView(
-                    "暂无支出数据",
+                    "暂无\(selectedTransactionType.title)数据",
                     systemImage: "chart.pie",
-                    description: Text("本月记录支出后会显示分类占比。")
+                    description: Text(
+                        "本月记录\(selectedTransactionType.title)后会显示分类占比。"
+                    )
                 )
                 .frame(maxWidth: .infinity)
                 .fixedSize(horizontal: false, vertical: true)
@@ -274,7 +311,7 @@ struct ReportsView: View {
                 .foregroundStyle(color(for: slice, in: context))
                 .accessibilityLabel(slice.name)
                 .accessibilityValue(
-                    "\(MoneyAmount.formatted(cents: slice.amountInCents))，\(percentageText(for: slice, totalInCents: context.snapshot.summary.expenseInCents))"
+                    "\(MoneyAmount.formatted(cents: slice.amountInCents))，\(percentageText(for: slice, totalInCents: selectedTotalInCents(in: context.snapshot.summary)))"
                 )
             }
             .chartLegend(.hidden)
@@ -304,17 +341,17 @@ struct ReportsView: View {
                 }
             }
             .frame(height: 260)
-            .accessibilityLabel("本月支出分类占比")
+            .accessibilityLabel("本月\(selectedTransactionType.title)分类占比")
 
             VStack(spacing: 4) {
-                Text("本月支出")
+                Text("本月\(selectedTransactionType.title)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
                 Text(
                     MoneyAmount.formatted(
-                        cents: context.snapshot.summary.expenseInCents
+                        cents: selectedTotalInCents(in: context.snapshot.summary)
                     )
                 )
                 .font(.headline)
@@ -351,7 +388,9 @@ struct ReportsView: View {
                         Text(
                             percentageText(
                                 for: slice,
-                                totalInCents: context.snapshot.summary.expenseInCents
+                                totalInCents: selectedTotalInCents(
+                                    in: context.snapshot.summary
+                                )
                             )
                         )
                             .foregroundStyle(.secondary)
@@ -368,7 +407,7 @@ struct ReportsView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(
-                    "\(slice.name)，\(percentageText(for: slice, totalInCents: context.snapshot.summary.expenseInCents))"
+                    "\(slice.name)，\(percentageText(for: slice, totalInCents: selectedTotalInCents(in: context.snapshot.summary)))"
                 )
                 .accessibilityHint("查看分类明细")
             }
@@ -377,6 +416,7 @@ struct ReportsView: View {
 
     private func dailyTrendSection(_ context: RenderContext) -> some View {
         let points = context.snapshot.dailyExpensePoints
+        let trendColor = LedgerTransactionStyle.reportColor(for: selectedTransactionType)
         let selectedPoint = selectedTrendDate.flatMap { selectedDate in
             ReportService.nearestDailyExpensePoint(to: selectedDate, in: points)
         }
@@ -387,20 +427,20 @@ struct ReportsView: View {
         let yUpperBound = max(highestAmount * 1.12, 1)
 
         return VStack(alignment: .leading, spacing: 16) {
-            Text("每日支出趋势")
+            Text("每日\(selectedTransactionType.title)趋势")
                 .font(.title2.bold())
 
             Chart {
                 ForEach(points) { point in
                     AreaMark(
                         x: .value("日期", point.date, unit: .day),
-                        y: .value("支出", point.amountInYuan)
+                        y: .value(selectedTransactionType.title, point.amountInYuan)
                     )
                     .foregroundStyle(
                         .linearGradient(
                             colors: [
-                                Color.accentColor.opacity(0.22),
-                                Color.accentColor.opacity(0.02)
+                                trendColor.opacity(0.22),
+                                trendColor.opacity(0.02)
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -409,9 +449,9 @@ struct ReportsView: View {
 
                     LineMark(
                         x: .value("日期", point.date, unit: .day),
-                        y: .value("支出", point.amountInYuan)
+                        y: .value(selectedTransactionType.title, point.amountInYuan)
                     )
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(trendColor)
                     .lineStyle(
                         StrokeStyle(
                             lineWidth: 2,
@@ -430,9 +470,12 @@ struct ReportsView: View {
 
                     PointMark(
                         x: .value("选中日期", selectedPoint.date, unit: .day),
-                        y: .value("当日支出", selectedPoint.amountInYuan)
+                        y: .value(
+                            "当日\(selectedTransactionType.title)",
+                            selectedPoint.amountInYuan
+                        )
                     )
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(trendColor)
                     .symbolSize(64)
                 }
             }
@@ -523,7 +566,7 @@ struct ReportsView: View {
                     oldValue != nil && newValue != nil && oldValue != newValue
                 }
             )
-            .accessibilityLabel("本月每日支出趋势")
+            .accessibilityLabel("本月每日\(selectedTransactionType.title)趋势")
             .accessibilityValue(
                 selectedPoint.map(trendSelectionText(for:))
                     ?? trendAccessibilitySummary(for: points)
@@ -607,6 +650,15 @@ struct ReportsView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private func selectedTotalInCents(in summary: MonthlyLedgerSummary) -> Int64 {
+        switch selectedTransactionType {
+        case .expense:
+            summary.expenseInCents
+        case .income:
+            summary.incomeInCents
+        }
+    }
+
     private var monthTitle: String {
         selectedMonth.formatted(
             Date.FormatStyle()
@@ -638,14 +690,15 @@ struct ReportsView: View {
     private func showDetails(for slice: ExpenseCategorySlice) {
         categoryDetailPresentation = CategoryDetailPresentation(
             slice: slice,
-            month: selectedMonth
+            month: selectedMonth,
+            transactionType: selectedTransactionType
         )
     }
 
     private func trendAccessibilitySummary(for points: [DailyExpensePoint]) -> String {
-        let spendingDays = points.filter { $0.amountInCents > 0 }
-        guard let highest = spendingDays.max(by: { $0.amountInCents < $1.amountInCents }) else {
-            return "本月暂无支出"
+        let activeDays = points.filter { $0.amountInCents > 0 }
+        guard let highest = activeDays.max(by: { $0.amountInCents < $1.amountInCents }) else {
+            return "本月暂无\(selectedTransactionType.title)"
         }
 
         let date = highest.date.formatted(
@@ -654,7 +707,7 @@ struct ReportsView: View {
                 .day()
                 .locale(Locale(identifier: "zh_CN"))
         )
-        return "本月有\(spendingDays.count)天产生支出，最高为\(date)的\(MoneyAmount.formatted(cents: highest.amountInCents))"
+        return "本月有\(activeDays.count)天产生\(selectedTransactionType.title)，最高为\(date)的\(MoneyAmount.formatted(cents: highest.amountInCents))"
     }
 }
 

@@ -83,6 +83,7 @@ enum ReportService {
         for transactions: [CurrentLedgerTransaction],
         categories: [CurrentLedgerCategory],
         inMonthContaining date: Date,
+        transactionType: LedgerTransactionType = .expense,
         calendar: Calendar = .autoupdatingCurrent
     ) -> MonthlyReportSnapshot {
         MonthlyReportSnapshot(
@@ -95,11 +96,13 @@ enum ReportService {
                 for: transactions,
                 categories: categories,
                 inMonthContaining: date,
+                transactionType: transactionType,
                 calendar: calendar
             ),
             dailyExpensePoints: dailyExpensePoints(
                 for: transactions,
                 inMonthContaining: date,
+                transactionType: transactionType,
                 calendar: calendar
             )
         )
@@ -109,6 +112,7 @@ enum ReportService {
         for transactions: [CurrentLedgerTransaction],
         categories: [CurrentLedgerCategory],
         inMonthContaining date: Date,
+        transactionType: LedgerTransactionType = .expense,
         maximumSliceCount: Int = 6,
         calendar: Calendar = .autoupdatingCurrent
     ) -> [ExpenseCategorySlice] {
@@ -120,10 +124,10 @@ enum ReportService {
         }
 
         let categoryByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
-        let expenses = transactions.filter {
-            $0.type == .expense && interval.containsHalfOpen($0.date)
+        let matchingTransactions = transactions.filter {
+            $0.type == transactionType && interval.containsHalfOpen($0.date)
         }
-        let grouped = Dictionary(grouping: expenses, by: \.categoryID)
+        let grouped = Dictionary(grouping: matchingTransactions, by: \.categoryID)
 
         let sortedSlices = grouped.compactMap { categoryID, transactions -> ExpenseCategorySlice? in
             let amount = MoneyArithmetic.sum(transactions.map(\.amountInCents))
@@ -168,6 +172,7 @@ enum ReportService {
         categories: [CurrentLedgerCategory],
         subcategories: [CurrentLedgerSubcategory],
         inMonthContaining date: Date,
+        transactionType: LedgerTransactionType = .expense,
         calendar: Calendar = .autoupdatingCurrent
     ) -> [ReportDetailItem] {
         guard let interval = CalendarIntervals.month(containing: date, calendar: calendar) else {
@@ -176,7 +181,7 @@ enum ReportService {
 
         let categoryIDs = Set(slice.categoryIDs)
         let matchingTransactions = transactions.filter {
-            $0.type == .expense
+            $0.type == transactionType
                 && interval.containsHalfOpen($0.date)
                 && categoryIDs.contains($0.categoryID)
         }
@@ -213,16 +218,17 @@ enum ReportService {
     static func dailyExpensePoints(
         for transactions: [CurrentLedgerTransaction],
         inMonthContaining date: Date,
+        transactionType: LedgerTransactionType = .expense,
         calendar: Calendar = .autoupdatingCurrent
     ) -> [DailyExpensePoint] {
         guard let monthInterval = CalendarIntervals.month(containing: date, calendar: calendar) else {
             return []
         }
 
-        let monthlyExpenses = transactions.filter {
-            $0.type == .expense && monthInterval.containsHalfOpen($0.date)
+        let monthlyTransactions = transactions.filter {
+            $0.type == transactionType && monthInterval.containsHalfOpen($0.date)
         }
-        let amountsByDay = Dictionary(grouping: monthlyExpenses) {
+        let amountsByDay = Dictionary(grouping: monthlyTransactions) {
             calendar.startOfDay(for: $0.date)
         }
         .mapValues { MoneyArithmetic.sum($0.map(\.amountInCents)) }

@@ -33,9 +33,10 @@ struct RecordView: View {
     init(
         transaction: CurrentLedgerTransaction? = nil,
         initialDate: Date? = nil,
-        initialCategoryID: UUID? = nil
+        initialCategoryID: UUID? = nil,
+        initialTransactionType: LedgerTransactionType = .expense
     ) {
-        let type = transaction?.type ?? .expense
+        let type = transaction?.type ?? initialTransactionType
         let categoryID = transaction?.categoryID ?? initialCategoryID
         let subcategoryID = transaction?.subcategoryID
         let amountText = transaction.map {
@@ -81,8 +82,11 @@ struct RecordView: View {
         MoneyAmount.cents(from: amountText)
     }
 
-    private var defaultExpenseCategoryID: UUID? {
-        RecordCategorySelectionService.defaultExpenseCategoryID(in: categories)
+    private var defaultCategoryID: UUID? {
+        RecordCategorySelectionService.defaultCategoryID(
+            for: transactionType,
+            in: categories
+        )
     }
 
     private var canSave: Bool {
@@ -186,7 +190,7 @@ struct RecordView: View {
             .onChange(of: transactionType) {
                 selectedCategoryID = nil
                 selectedSubcategoryID = nil
-                selectDefaultExpenseCategoryIfNeeded()
+                selectDefaultCategoryIfNeeded()
             }
             .onAppear {
                 if !isEditing {
@@ -196,16 +200,15 @@ struct RecordView: View {
         }
     }
 
-    private func selectDefaultExpenseCategoryIfNeeded() {
+    private func selectDefaultCategoryIfNeeded() {
         guard !isEditing,
-              transactionType == .expense,
               selectedCategoryID == nil,
-              let defaultExpenseCategoryID
+              let defaultCategoryID
         else {
             return
         }
 
-        selectedCategoryID = defaultExpenseCategoryID
+        selectedCategoryID = defaultCategoryID
         selectedSubcategoryID = nil
     }
 

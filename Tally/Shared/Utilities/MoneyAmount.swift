@@ -46,6 +46,16 @@ enum MoneyAmount {
     }
 
     static func cents(from input: String, locale: Locale = .current) -> Int64? {
+        guard let cents = centsAllowingZero(from: input, locale: locale) else {
+            return nil
+        }
+        return cents > 0 ? cents : nil
+    }
+
+    static func centsAllowingZero(
+        from input: String,
+        locale: Locale = .current
+    ) -> Int64? {
         guard !input.isEmpty, isValidEditingText(input, locale: locale) else {
             return nil
         }
@@ -78,8 +88,7 @@ enum MoneyAmount {
         guard let fraction = Int64(paddedFraction) else { return nil }
         guard whole <= (Int64.max - fraction) / 100 else { return nil }
 
-        let cents = whole * 100 + fraction
-        return cents > 0 ? cents : nil
+        return whole * 100 + fraction
     }
 
     static func formatted(
