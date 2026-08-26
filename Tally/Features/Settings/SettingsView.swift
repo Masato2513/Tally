@@ -14,6 +14,12 @@ struct SettingsView: View {
                 } label: {
                     Label("分类管理", systemImage: "square.grid.2x2")
                 }
+
+                NavigationLink {
+                    TransactionExportView()
+                } label: {
+                    Label("账单导出", systemImage: "square.and.arrow.up")
+                }
             }
 
             Section("关于") {
