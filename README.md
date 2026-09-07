@@ -6,6 +6,18 @@
 
 <p align="center">简单、干净的私人账本</p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Swift-5.0-F05138?logo=swift&logoColor=white" alt="Swift">
+  <img src="https://img.shields.io/badge/version-1.1.2-blue" alt="Version">
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/Masato2513/Tally" alt="License">
+  </a>
+  <a href="https://github.com/Masato2513/Tally/stargazers">
+    <img src="https://img.shields.io/github/stars/Masato2513/Tally?style=flat" alt="Stars">
+  </a>
+  <img src="https://img.shields.io/github/last-commit/Masato2513/Tally" alt="Last Commit">
+</p>
+
 「记账」是一款为 iPhone 打造的轻量账本，专注于让日常收支记录更快、更自然。
 
 它不追求复杂的财务功能，也不使用繁重的操作流程。打开、输入金额、完成，一笔账就记录好了。
@@ -84,4 +96,4 @@
 
 ## 当前状态
 
-当前版本为 **1.0.1**，正在进行长期使用与真机体验测试。
+当前版本为 **1.1.2**，正在进行长期使用与真机体验测试。
